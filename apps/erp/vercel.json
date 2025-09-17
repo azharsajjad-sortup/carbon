@@ -1,8 +1,9 @@
 {
   "version": 2,
-  "functions": {
-    "index": {
-      "runtime": "nodejs20.x"
+  "builds": [
+    {
+      "src": "apps/erp/package.json",
+      "use": "@vercel/remix"
     }
-  }
+  ]
 }
