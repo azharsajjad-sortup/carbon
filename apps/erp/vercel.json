@@ -1,9 +1,0 @@
-{
-  "version": 2,
-  "builds": [
-    {
-      "src": "apps/erp/package.json",
-      "use": "@vercel/remix"
-    }
-  ]
-}
