@@ -12,9 +12,9 @@ export interface IconButtonProps
 }
 
 const iconSizes = {
-  sm: "w-4 h-4",
-  md: "w-5 h-5",
-  lg: "w-6 h-6",
+  sm: "size-3 flex-shrink-0",
+  md: "size-4 flex-shrink-0",
+  lg: "size-5 flex-shrink-0",
 } as const;
 
 const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(

@@ -1,6 +1,7 @@
 import { useCarbon } from "@carbon/auth";
 import {
   Button,
+  Copy,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuIcon,
@@ -13,6 +14,7 @@ import {
   IconButton,
   useDisclosure,
 } from "@carbon/react";
+import { getItemReadableId } from "@carbon/utils";
 import { Link, useFetcher, useParams } from "@remix-run/react";
 import { useEffect, useState } from "react";
 import { flushSync } from "react-dom";
@@ -20,8 +22,11 @@ import {
   LuCheckCheck,
   LuChevronDown,
   LuDollarSign,
+  LuEye,
+  LuFile,
   LuPanelLeft,
   LuPanelRight,
+  LuTicketX,
   LuTruck,
 } from "react-icons/lu";
 import { RiProgress8Line } from "react-icons/ri";
@@ -33,15 +38,16 @@ import { salesInvoiceStatusType } from "~/modules/invoicing";
 import type { action } from "~/routes/x+/sales-invoice+/$invoiceId.post";
 import type { action as statusAction } from "~/routes/x+/sales-invoice+/$invoiceId.status";
 import { useItems } from "~/stores";
-import { getItemReadableId } from "~/utils/items";
 import { path } from "~/utils/path";
 import SalesInvoicePostModal from "./SalesInvoicePostModal";
 import SalesInvoiceStatus from "./SalesInvoiceStatus";
+import SalesInvoiceVoidModal from "./SalesInvoiceVoidModal";
 
 const SalesInvoiceHeader = () => {
   const permissions = usePermissions();
   const { invoiceId } = useParams();
   const postingModal = useDisclosure();
+  const voidModal = useDisclosure();
   const postFetcher = useFetcher<typeof action>();
   const statusFetcher = useFetcher<typeof statusAction>();
 
@@ -67,6 +73,7 @@ const SalesInvoiceHeader = () => {
   const { salesInvoice } = routeData;
   const { toggleExplorer, toggleProperties } = usePanels();
   const isPosted = salesInvoice.postingDate !== null;
+  const isVoided = salesInvoice.status === "Voided";
 
   const [relatedDocs, setRelatedDocs] = useState<{
     salesOrders: { id: string; readableId: string }[];
@@ -161,6 +168,7 @@ const SalesInvoiceHeader = () => {
                 <span>{routeData?.salesInvoice?.invoiceId}</span>
               </Heading>
             </Link>
+            <Copy text={routeData?.salesInvoice?.invoiceId ?? ""} />
             <SalesInvoiceStatus status={salesInvoice.status} />
           </HStack>
           <HStack>
@@ -231,6 +239,29 @@ const SalesInvoiceHeader = () => {
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  leftIcon={<LuEye />}
+                  variant="secondary"
+                  rightIcon={<LuChevronDown />}
+                >
+                  Preview
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem asChild>
+                  <a
+                    target="_blank"
+                    href={path.to.file.salesInvoice(invoiceId)}
+                    rel="noreferrer"
+                  >
+                    <DropdownMenuIcon icon={<LuFile />} />
+                    PDF
+                  </a>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Button
               leftIcon={<LuCheckCheck />}
               variant={
@@ -249,14 +280,24 @@ const SalesInvoiceHeader = () => {
             >
               Post
             </Button>
+            {isPosted && (
+              <Button
+                leftIcon={<LuTicketX />}
+                variant="destructive"
+                onClick={voidModal.onOpen}
+                isDisabled={isVoided || !permissions.can("update", "invoicing")}
+              >
+                Void
+              </Button>
+            )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="secondary"
                   isDisabled={
-                    salesInvoice.status === "Draft" ||
-                    salesInvoice.status === "Pending" ||
-                    !permissions.can("update", "invoicing")
+                    ["Voided", "Draft", "Pending"].includes(
+                      salesInvoice.status ?? ""
+                    ) || !permissions.can("update", "invoicing")
                   }
                   leftIcon={<LuDollarSign />}
                   rightIcon={<LuChevronDown />}
@@ -270,7 +311,10 @@ const SalesInvoiceHeader = () => {
                   onValueChange={handleStatusChange}
                 >
                   {salesInvoiceStatusType
-                    .filter((status) => !["Draft", "Pending"].includes(status))
+                    .filter(
+                      (status) =>
+                        !["Draft", "Pending", "Voided"].includes(status)
+                    )
                     .map((status) => (
                       <DropdownMenuRadioItem key={status} value={status}>
                         <SalesInvoiceStatus status={status} />
@@ -299,6 +343,9 @@ const SalesInvoiceHeader = () => {
           linesToShip={linesNotAssociatedWithSO}
           fetcher={postFetcher}
         />
+      )}
+      {voidModal.isOpen && (
+        <SalesInvoiceVoidModal onClose={voidModal.onClose} />
       )}
     </>
   );

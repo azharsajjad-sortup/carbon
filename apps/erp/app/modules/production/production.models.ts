@@ -5,7 +5,7 @@ import {
   methodOperationOrders,
   methodType,
   operationTypes,
-  procedureAttributeType,
+  procedureStepType,
   standardFactorType,
 } from "../shared";
 
@@ -182,7 +182,7 @@ export const salesOrderToJobValidator = baseJobValidator
   );
 
 export const baseJobOperationValidator = z.object({
-  id: zfd.text(z.string().optional()),
+  id: z.string().min(1, { message: "Operation ID is required" }),
   jobMakeMethodId: z
     .string()
     .min(1, { message: "Quote Make Method is required" }),
@@ -710,13 +710,13 @@ export const procedureValidator = z.object({
   copyFromId: zfd.text(z.string().optional()),
 });
 
-export const procedureAttributeValidator = z
+export const procedureStepValidator = z
   .object({
     id: zfd.text(z.string().optional()),
     procedureId: z.string().min(1, { message: "Procedure is required" }),
     name: z.string().min(1, { message: "Name is required" }),
     description: zfd.text(z.string().optional()),
-    type: z.enum(procedureAttributeType, {
+    type: z.enum(procedureStepType, {
       errorMap: () => ({ message: "Type is required" }),
     }),
     unitOfMeasureCode: zfd.text(z.string().optional()),
@@ -839,4 +839,16 @@ export const scheduleOperationUpdateValidator = z.object({
 export const scrapReasonValidator = z.object({
   id: zfd.text(z.string().optional()),
   name: z.string().min(1, { message: "Name is required" }),
+});
+
+export const demandForecastsValidator = z.object({
+  itemId: z.string().min(1, { message: "Item is required" }),
+  locationId: z.string().min(1, { message: "Location is required" }),
+  periods: z.array(z.string()).optional(),
+  ...Object.fromEntries(
+    Array.from({ length: 52 }, (_, i) => [
+      `week${i}`,
+      zfd.numeric(z.number().min(0).optional()),
+    ])
+  ),
 });

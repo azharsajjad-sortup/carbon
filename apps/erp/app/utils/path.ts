@@ -63,6 +63,7 @@ export const path = {
           `${api}/production/methods/${id}/bom.csv?withOperations=${withOperations}`
         ),
       jobs: `${api}/production/jobs`,
+      kanban: (id: string) => generatePath(`${api}/kanban/${id}`),
       locations: `${api}/resources/locations`,
       materialDimensions: (formId: string) =>
         generatePath(`${api}/items/dimensions/${formId}`),
@@ -159,6 +160,11 @@ export const path = {
     },
     file: {
       cadModel: (id: string) => generatePath(`${file}/model/${id}`),
+      kanbanLabelsPdf: (ids: string | string[]) => {
+        const idString = Array.isArray(ids) ? ids.join(",") : ids;
+        return generatePath(`${file}/kanban/labels.pdf?ids=${idString}`);
+      },
+      kanbanQrCode: (id: string) => generatePath(`${file}/kanban/${id}.png`),
       jobTraveler: (id: string) => generatePath(`${file}/traveler/${id}.pdf`),
       nonConformance: (id: string) => generatePath(`${file}/issue/${id}.pdf`),
       operationLabelsPdf: (
@@ -197,6 +203,8 @@ export const path = {
 
         return generatePath(url);
       },
+      preview: (bucket: string, path: string) =>
+        generatePath(`${file}/preview/${bucket}/${path}`),
       previewImage: (bucket: string, path: string) =>
         generatePath(`${file}/preview/image?file=${bucket}/${path}`),
       previewFile: (path: string) => generatePath(`${file}/preview/${path}`),
@@ -325,6 +333,7 @@ export const path = {
       generatePath(`${x}/inventory/batch-property/${itemId}/property`),
     batchPropertyOrder: (itemId: string) =>
       generatePath(`${x}/inventory/batch-property/${itemId}/property/order`),
+    billing: `${x}/settings/billing`,
     bulkEditPermissions: `${x}/users/bulk-edit-permissions`,
     bulkUpdateItems: `${x}/items/update`,
     bulkUpdateProductionPlanning: `${x}/production/planning/update`,
@@ -349,7 +358,6 @@ export const path = {
     company: `${x}/settings/company`,
     companySwitch: (companyId: string) =>
       generatePath(`${x}/settings/company/switch/${companyId}`),
-    settingsPayment: `${x}/settings/payment`,
     configurationParameter: (itemId: string) =>
       generatePath(`${x}/part/${itemId}/parameter`),
     configurationParameterGroup: (itemId: string) =>
@@ -506,8 +514,8 @@ export const path = {
     deleteJob: (id: string) => generatePath(`${x}/job/${id}/delete`),
     deleteJobMaterial: (jobId: string, id: string) =>
       generatePath(`${x}/job/methods/${jobId}/material/delete/${id}`),
-    deleteJobOperationAttribute: (id: string) =>
-      generatePath(`${x}/job/methods/operation/attribute/delete/${id}`),
+    deleteJobOperationStep: (id: string) =>
+      generatePath(`${x}/job/methods/operation/step/delete/${id}`),
     deleteJobOperationParameter: (id: string) =>
       generatePath(`${x}/job/methods/operation/parameter/delete/${id}`),
     deleteJobOperationTool: (id: string) =>
@@ -526,8 +534,8 @@ export const path = {
       generatePath(`${x}/items/substances/delete/${id}`),
     deleteMethodMaterial: (id: string) =>
       generatePath(`${x}/items/methods/material/delete/${id}`),
-    deleteMethodOperationAttribute: (id: string) =>
-      generatePath(`${x}/items/methods/operation/attribute/delete/${id}`),
+    deleteMethodOperationStep: (id: string) =>
+      generatePath(`${x}/items/methods/operation/step/delete/${id}`),
     deleteMethodOperationParameter: (id: string) =>
       generatePath(`${x}/items/methods/operation/parameter/delete/${id}`),
     deleteMethodOperationTool: (id: string) =>
@@ -545,6 +553,8 @@ export const path = {
       generatePath(`${x}/quality/required-actions/delete/${id}`),
     deleteIssueType: (id: string) =>
       generatePath(`${x}/quality/issue-types/delete/${id}`),
+    deleteKanban: (id: string) =>
+      generatePath(`${x}/inventory/kanbans/delete/${id}`),
     deleteNoQuoteReason: (id: string) =>
       generatePath(`${x}/sales/no-quote-reasons/delete/${id}`),
     deleteCustomerPortal: (id: string) =>
@@ -556,8 +566,8 @@ export const path = {
       generatePath(`${x}/accounting/payment-terms/delete/${id}`),
     deleteProcedure: (id: string) =>
       generatePath(`${x}/procedure/delete/${id}`),
-    deleteProcedureAttribute: (id: string, attributeId: string) =>
-      generatePath(`${x}/procedure/${id}/attributes/delete/${attributeId}`),
+    deleteProcedureStep: (id: string, stepId: string) =>
+      generatePath(`${x}/procedure/${id}/steps/delete/${stepId}`),
     deleteProcedureParameter: (id: string, parameterId: string) =>
       generatePath(`${x}/procedure/${id}/parameters/delete/${parameterId}`),
     deleteProcess: (id: string) =>
@@ -566,6 +576,8 @@ export const path = {
       generatePath(`${x}/job/methods/event/delete/${id}`),
     deleteProductionQuantity: (id: string) =>
       generatePath(`${x}/job/methods/quantity/delete/${id}`),
+    deleteDemandForecasts: (itemId: string, locationId: string) =>
+      generatePath(`${x}/production/forecasts/delete/${itemId}/${locationId}`),
     deletePurchaseInvoice: (id: string) =>
       generatePath(`${x}/purchase-invoice/${id}/delete`),
     deletePurchaseInvoiceLine: (invoiceId: string, lineId: string) =>
@@ -583,8 +595,8 @@ export const path = {
       generatePath(
         `${x}/quote/methods/${quoteId}/${lineId}/material/delete/${id}`
       ),
-    deleteQuoteOperationAttribute: (id: string) =>
-      generatePath(`${x}/quote/methods/operation/attribute/delete/${id}`),
+    deleteQuoteOperationStep: (id: string) =>
+      generatePath(`${x}/quote/methods/operation/step/delete/${id}`),
     deleteQuoteOperationParameter: (id: string) =>
       generatePath(`${x}/quote/methods/operation/parameter/delete/${id}`),
     deleteQuoteOperationTool: (id: string) =>
@@ -633,6 +645,9 @@ export const path = {
       generatePath(`${x}/settings/webhooks/delete/${id}`),
     deleteWorkCenter: (id: string) =>
       generatePath(`${x}/resources/work-centers/delete/${id}`),
+    demandForecast: (itemId: string, locationId: string) =>
+      generatePath(`${x}/production/forecasts/${itemId}/${locationId}`),
+    demandForecasts: `${x}/production/forecasts`,
     department: (id: string) => generatePath(`${x}/people/departments/${id}`),
     departments: `${x}/people/departments`,
     document: (id: string) => generatePath(`${x}/documents/search/${id}`),
@@ -656,7 +671,6 @@ export const path = {
     externalQuote: (id: string) => generatePath(`/share/quote/${id}`),
     feedback: `${x}/feedback`,
     fiscalYears: `${x}/accounting/years`,
-
     gauge: (id: string) => generatePath(`${x}/quality/gauges/${id}`),
     gauges: `${x}/quality/gauges`,
     gaugeCalibrationRecord: (id: string) =>
@@ -702,9 +716,6 @@ export const path = {
     investigationType: (id: string) =>
       generatePath(`${x}/quality/investigation-types/${id}`),
     investigationTypes: `${x}/quality/investigation-types`,
-    requiredAction: (id: string) =>
-      generatePath(`${x}/quality/required-actions/${id}`),
-    requiredActions: `${x}/quality/required-actions`,
     issueType: (id: string) => generatePath(`${x}/quality/issue-types/${id}`),
     issueTypes: `${x}/quality/issue-types`,
     items: `${x}/items`,
@@ -734,8 +745,10 @@ export const path = {
       generatePath(`${x}/job/methods/${jobId}/operation/order`),
     jobOperationsDelete: (jobId: string) =>
       generatePath(`${x}/job/methods/${jobId}/operation/delete`),
-    jobOperationAttribute: (id: string) =>
-      generatePath(`${x}/job/methods/operation/attribute/${id}`),
+    jobOperationStep: (id: string) =>
+      generatePath(`${x}/job/methods/operation/step/${id}`),
+    jobOperationStepOrder: (operationId: string) =>
+      generatePath(`${x}/job/methods/operation/${operationId}/step/order`),
     jobOperationParameter: (id: string) =>
       generatePath(`${x}/job/methods/operation/parameter/${id}`),
     jobOperationProcedureSync: `${x}/job/methods/operation/procedure/sync`,
@@ -751,6 +764,9 @@ export const path = {
     jobRecalculate: (id: string) => generatePath(`${x}/job/${id}/recalculate`),
     jobRelease: (id: string) => generatePath(`${x}/job/${id}/release`),
     jobStatus: (id: string) => generatePath(`${x}/job/${id}/status`),
+    kanban: (id: string) => generatePath(`${x}/inventory/kanbans/${id}`),
+    kanbans: `${x}/inventory/kanbans`,
+
     labelsSettings: `${x}/settings/labels`,
     location: (id: string) => generatePath(`${x}/resources/locations/${id}`),
     locations: `${x}/resources/locations`,
@@ -805,8 +821,10 @@ export const path = {
     methodOperations: `${x}/items/methods/operations`,
     methodOperationsOrder: `${x}/items/methods/operation/order`,
     methodOperationsDelete: `${x}/items/methods/operation/delete`,
-    methodOperationAttribute: (id: string) =>
-      generatePath(`${x}/items/methods/operation/attribute/${id}`),
+    methodOperationStep: (id: string) =>
+      generatePath(`${x}/items/methods/operation/step/${id}`),
+    methodOperationStepOrder: (operationId: string) =>
+      generatePath(`${x}/items/methods/operation/${operationId}/step/order`),
     methodOperationParameter: (id: string) =>
       generatePath(`${x}/items/methods/operation/parameter/${id}`),
     methodOperationTool: (id: string) =>
@@ -860,15 +878,16 @@ export const path = {
       generatePath(`${x}/job/methods/${jobId}/material/new`),
     newJobOperation: (jobId: string) =>
       generatePath(`${x}/job/methods/${jobId}/operation/new`),
-    newJobOperationAttribute: `${x}/job/methods/operation/attribute/new`,
+    newJobOperationStep: `${x}/job/methods/operation/step/new`,
     newJobOperationParameter: `${x}/job/methods/operation/parameter/new`,
     newJobOperationTool: `${x}/job/methods/operation/tool/new`,
+    newKanban: `${x}/inventory/kanbans/new`,
     newLocation: `${x}/resources/locations/new`,
     newMakeMethodVersion: `${x}/items/methods/version/new`,
     newMaterial: `${x}/material/new`,
     newMethodMaterial: `${x}/items/methods/material/new`,
     newMethodOperation: `${x}/items/methods/operation/new`,
-    newMethodOperationAttribute: `${x}/items/methods/operation/attribute/new`,
+    newMethodOperationStep: `${x}/items/methods/operation/step/new`,
     newMethodOperationTool: `${x}/items/methods/operation/tool/new`,
     newMethodOperationParameter: `${x}/items/methods/operation/parameter/new`,
     newIssue: `${x}/issue/new`,
@@ -881,10 +900,11 @@ export const path = {
     newNote: `${x}/shared/notes/new`,
     newPart: `${x}/part/new`,
     newProcedure: `${x}/production/procedures/new`,
-    newProcedureAttribute: (id: string) =>
-      generatePath(`${x}/procedure/${id}/attributes/new`),
+    newProcedureStep: (id: string) =>
+      generatePath(`${x}/procedure/${id}/steps/new`),
     newProcedureParameter: (id: string) =>
       generatePath(`${x}/procedure/${id}/parameters/new`),
+    newDemandForecast: `${x}/production/forecasts/new`,
     newItemPostingGroup: `${x}/items/groups/new`,
     newMaterialDimension: `${x}/items/dimensions/new`,
     newMaterialFinish: `${x}/items/finishes/new`,
@@ -913,7 +933,7 @@ export const path = {
       generatePath(`${x}/quote/${id}/${lineId}/cost/new`),
     newQuoteOperation: (quoteId: string, lineId: string) =>
       generatePath(`${x}/quote/methods/${quoteId}/${lineId}/operation/new`),
-    newQuoteOperationAttribute: `${x}/quote/methods/operation/attribute/new`,
+    newQuoteOperationStep: `${x}/quote/methods/operation/step/new`,
     newQuoteOperationParameter: `${x}/quote/methods/operation/parameter/new`,
     newQuoteOperationTool: `${x}/quote/methods/operation/tool/new`,
     newQuoteMaterial: (quoteId: string, lineId: string) =>
@@ -1012,10 +1032,10 @@ export const path = {
     personDetails: (id: string) => generatePath(`${x}/person/${id}/details`),
     personJob: (id: string) => generatePath(`${x}/person/${id}/job`),
     procedure: (id: string) => generatePath(`${x}/procedure/${id}`),
-    procedureAttribute: (id: string, attributeId: string) =>
-      generatePath(`${x}/procedure/${id}/attributes/${attributeId}`),
-    procedureAttributeOrder: (id: string) =>
-      generatePath(`${x}/procedure/${id}/attributes/order`),
+    procedureStep: (id: string, attributeId: string) =>
+      generatePath(`${x}/procedure/${id}/steps/${attributeId}`),
+    procedureStepOrder: (id: string) =>
+      generatePath(`${x}/procedure/${id}/steps/order`),
     procedureParameter: (id: string, parameterId: string) =>
       generatePath(`${x}/procedure/${id}/parameters/${parameterId}`),
     procedures: `${x}/production/procedures`,
@@ -1023,6 +1043,7 @@ export const path = {
     processes: `${x}/resources/processes`,
     production: `${x}/production`,
     productionPlanning: `${x}/production/planning`,
+
     productionPlanningItem: (itemId: string) =>
       generatePath(`${x}/production/planning/${itemId}`),
     productionSettings: `${x}/settings/production`,
@@ -1112,8 +1133,10 @@ export const path = {
       generatePath(`${x}/quote/methods/${quoteId}/${lineId}/operation/${id}`),
     quoteOperationsOrder: `${x}/quote/methods/operation/order`,
     quoteOperationsDelete: `${x}/quote/methods/operation/delete`,
-    quoteOperationAttribute: (id: string) =>
-      generatePath(`${x}/quote/methods/operation/attribute/${id}`),
+    quoteOperationStep: (id: string) =>
+      generatePath(`${x}/quote/methods/operation/step/${id}`),
+    quoteOperationStepOrder: (operationId: string) =>
+      generatePath(`${x}/quote/methods/operation/${operationId}/step/order`),
     quoteOperationParameter: (id: string) =>
       generatePath(`${x}/quote/methods/operation/parameter/${id}`),
     quoteOperationTool: (id: string) =>
@@ -1135,6 +1158,9 @@ export const path = {
     receiptPost: (id: string) => generatePath(`${x}/receipt/${id}/post`),
     receiptRoot: `${x}/receipt`,
     refreshSession: "/refresh-session",
+    requiredAction: (id: string) =>
+      generatePath(`${x}/quality/required-actions/${id}`),
+    requiredActions: `${x}/quality/required-actions`,
     resendInvite: `${x}/users/resend-invite`,
     resources: `${x}/resources`,
     revision: (id: string) => generatePath(`${x}/items/revisions/${id}`),
@@ -1155,6 +1181,8 @@ export const path = {
       generatePath(`${x}/sales-invoice/${id}/shipment`),
     salesInvoiceStatus: (id: string) =>
       generatePath(`${x}/sales-invoice/${id}/status`),
+    salesInvoiceVoid: (id: string) =>
+      generatePath(`${x}/sales-invoice/${id}/void`),
     salesInvoices: `${x}/sales/invoices`,
     salesOrder: (id: string) => generatePath(`${x}/sales-order/${id}`),
     salesOrderConfirm: (id: string) =>
@@ -1234,6 +1262,7 @@ export const path = {
     shipmentLinesTracking: (id: string) =>
       generatePath(`${x}/shipment/lines/tracking`),
     shipmentPost: (id: string) => generatePath(`${x}/shipment/${id}/post`),
+    shipmentVoid: (id: string) => generatePath(`${x}/shipment/${id}/void`),
     shippingMethod: (id: string) =>
       generatePath(`${x}/inventory/shipping-methods/${id}`),
     warehouseTransfers: `${x}/inventory/warehouse-transfers`,

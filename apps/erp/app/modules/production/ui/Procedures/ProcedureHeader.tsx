@@ -1,6 +1,7 @@
 import {
   Badge,
   Button,
+  Copy,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuIcon,
@@ -21,11 +22,14 @@ import { Suspense, useEffect } from "react";
 import {
   LuChevronDown,
   LuCirclePlus,
+  LuEllipsisVertical,
   LuGitPullRequestArrow,
   LuPanelLeft,
   LuPanelRight,
+  LuTrash,
 } from "react-icons/lu";
 import { usePanels } from "~/components/Layout";
+import ConfirmDelete from "~/components/Modals/ConfirmDelete";
 import { usePermissions, useRouteData } from "~/hooks";
 import { path } from "~/utils/path";
 import type { Procedure } from "../../types";
@@ -44,6 +48,7 @@ const ProcedureHeader = () => {
   const permissions = usePermissions();
   const { toggleExplorer, toggleProperties } = usePanels();
   const newVersionDisclosure = useDisclosure();
+  const deleteDisclosure = useDisclosure();
 
   useEffect(() => {
     newVersionDisclosure.onClose();
@@ -65,6 +70,30 @@ const ProcedureHeader = () => {
             <Badge variant="secondary">V{routeData?.procedure?.version}</Badge>
             <ProcedureStatus status={routeData?.procedure?.status} />
           </Heading>
+          <Copy text={routeData?.procedure?.name ?? ""} />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <IconButton
+                aria-label="More options"
+                icon={<LuEllipsisVertical />}
+                variant="secondary"
+                size="sm"
+              />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem
+                disabled={
+                  !permissions.can("delete", "production") ||
+                  !permissions.is("employee")
+                }
+                destructive
+                onClick={deleteDisclosure.onOpen}
+              >
+                <DropdownMenuIcon icon={<LuTrash />} />
+                Delete Procedure
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </HStack>
       </VStack>
       <div className="flex flex-shrink-0 gap-1 items-center justify-end">
@@ -128,6 +157,20 @@ const ProcedureHeader = () => {
           }}
           open={newVersionDisclosure.isOpen}
           onClose={newVersionDisclosure.onClose}
+        />
+      )}
+      {deleteDisclosure.isOpen && (
+        <ConfirmDelete
+          action={path.to.deleteProcedure(id)}
+          isOpen={deleteDisclosure.isOpen}
+          name={routeData?.procedure?.name ?? "procedure"}
+          text={`Are you sure you want to delete ${routeData?.procedure?.name}? This cannot be undone.`}
+          onCancel={() => {
+            deleteDisclosure.onClose();
+          }}
+          onSubmit={() => {
+            deleteDisclosure.onClose();
+          }}
         />
       )}
     </div>

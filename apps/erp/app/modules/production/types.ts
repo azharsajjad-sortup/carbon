@@ -7,17 +7,22 @@ import type {
   getJobOperations,
   getJobPurchaseOrderLines,
   getProcedure,
-  getProcedureAttributes,
   getProcedureParameters,
   getProcedures,
+  getProcedureSteps,
   getProductionEvents,
   getProductionPlanning,
+  getProductionProjections,
   getProductionQuantities,
   getScrapReasons,
 } from "./production.service";
 
 export type ActiveProductionEvent = NonNullable<
   Awaited<ReturnType<typeof getActiveProductionEvents>>["data"]
+>[number];
+
+export type DemandForecast = NonNullable<
+  Awaited<ReturnType<typeof getProductionProjections>>["data"]
 >[number];
 
 export type Job = NonNullable<Awaited<ReturnType<typeof getJob>>["data"]>;
@@ -54,8 +59,8 @@ export type Procedures = NonNullable<
   Awaited<ReturnType<typeof getProcedures>>["data"]
 >[number];
 
-export type ProcedureAttribute = NonNullable<
-  Awaited<ReturnType<typeof getProcedureAttributes>>["data"]
+export type ProcedureStep = NonNullable<
+  Awaited<ReturnType<typeof getProcedureSteps>>["data"]
 >[number];
 
 export type ProcedureParameter = NonNullable<

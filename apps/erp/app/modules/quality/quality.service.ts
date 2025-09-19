@@ -76,6 +76,11 @@ export async function deleteIssueAssociation(
   associationId: string
 ) {
   switch (type) {
+    case "items":
+      return await client
+        .from("nonConformanceItem")
+        .delete()
+        .eq("id", associationId);
     case "customers":
       return await client
         .from("nonConformanceCustomer")
@@ -302,7 +307,7 @@ export async function getIssues(
   args?: GenericQueryFilters & { search: string | null }
 ) {
   let query = client
-    .from("nonConformance")
+    .from("issues")
     .select("*", { count: "exact" })
     .eq("companyId", companyId);
 
@@ -400,6 +405,7 @@ export async function getIssueAssociations(
   companyId: string
 ) {
   const [
+    items,
     jobOperations,
     purchaseOrderLines,
     salesOrderLines,
@@ -409,6 +415,20 @@ export async function getIssueAssociations(
     customers,
     suppliers,
   ] = await Promise.all([
+    // Items
+    client
+      .from("nonConformanceItem")
+      .select(
+        `
+      id,
+      itemId,
+      ...item(
+        readableIdWithRevision
+      )
+      `
+      )
+      .eq("nonConformanceId", nonConformanceId)
+      .eq("companyId", companyId),
     // Job Operations
     client
       .from("nonConformanceJobOperation")
@@ -525,6 +545,14 @@ export async function getIssueAssociations(
   ]);
 
   return {
+    items:
+      items.data?.map((item) => ({
+        type: "items",
+        id: item.id,
+        documentId: item.itemId,
+        documentReadableId: item.readableIdWithRevision || "",
+        documentLineId: "",
+      })) || [],
     jobOperations:
       jobOperations.data?.map((item) => ({
         type: "jobOperations",
@@ -1000,17 +1028,33 @@ export async function upsertIssue(
       })
 ) {
   if ("createdBy" in nonConformance) {
+    const { items, ...data } = nonConformance;
     const result = await client
       .from("nonConformance")
-      .insert([nonConformance])
+      .insert([data])
       .select("id")
       .single();
 
+    if (result.data?.id && items && items.length > 0) {
+      const itemInsert = await client.from("nonConformanceItem").insert(
+        items.map((item) => ({
+          nonConformanceId: result.data.id,
+          itemId: item,
+          companyId: nonConformance.companyId,
+          createdBy: nonConformance.createdBy,
+        }))
+      );
+      if (itemInsert.error) {
+        console.error(itemInsert);
+      }
+    }
+
     return result;
   } else {
+    const { items, ...data } = nonConformance;
     return client
       .from("nonConformance")
-      .update(sanitize(nonConformance))
+      .update(sanitize(data))
       .eq("id", nonConformance.id);
   }
 }

@@ -26,9 +26,11 @@ import {
   useMount,
   VStack,
 } from "@carbon/react";
+import { getItemReadableId } from "@carbon/utils";
 import { Link, useFetcher, useParams } from "@remix-run/react";
 import { useEffect, useState } from "react";
 import { flushSync } from "react-dom";
+import { AiOutlinePartition } from "react-icons/ai";
 import {
   LuChevronRight,
   LuCirclePlus,
@@ -45,13 +47,13 @@ import {
   LuTruck,
 } from "react-icons/lu";
 import { RiProgress8Line } from "react-icons/ri";
-import { Customer, Supplier } from "~/components/Form";
+import { Customer, Item, Supplier } from "~/components/Form";
 import { ConfirmDelete } from "~/components/Modals";
 import { LevelLine } from "~/components/TreeView";
 import { usePermissions } from "~/hooks";
+import type { MethodItemType } from "~/modules/shared";
 import type { action as associationAction } from "~/routes/x+/issue+/$id.association.new";
 import { useItems } from "~/stores";
-import { getItemReadableId } from "~/utils/items";
 import { path } from "~/utils/path";
 import { issueAssociationValidator } from "../../quality.models";
 import type { IssueAssociationKey, IssueAssociationNode } from "../../types";
@@ -70,11 +72,11 @@ export function IssueAssociationsSkeleton() {
 export function IssueAssociationsTree({
   tree,
   nonConformanceId,
-  itemId,
+  items,
 }: {
   tree: IssueAssociationNode[];
   nonConformanceId: string;
-  itemId?: string;
+  items?: string[];
 }) {
   const [filterText, setFilterText] = useState("");
   const deleteDisclosure = useDisclosure();
@@ -113,7 +115,10 @@ export function IssueAssociationsTree({
           {tree
             .sort((a, b) => a.name.localeCompare(b.name))
             .filter((node) => {
-              if (node.key === "trackedEntities" && !itemId) {
+              if (
+                node.key === "trackedEntities" &&
+                (!Array.isArray(items) || items.length == 0)
+              ) {
                 return false;
               }
 
@@ -123,7 +128,7 @@ export function IssueAssociationsTree({
               <IssueAssociationItem
                 key={node.key}
                 filterText={filterText}
-                itemId={itemId}
+                items={items}
                 node={node}
                 nonConformanceId={nonConformanceId}
                 onDelete={onDelete}
@@ -153,13 +158,13 @@ export function IssueAssociationItem({
   node,
   filterText,
   nonConformanceId,
-  itemId,
+  items,
   onDelete,
 }: {
   node: IssueAssociationNode;
   filterText: string;
   nonConformanceId: string;
-  itemId?: string;
+  items?: string[];
   onDelete: (child: IssueAssociationNode["children"][number]) => void;
 }) {
   const newAssociationModal = useDisclosure();
@@ -270,7 +275,7 @@ export function IssueAssociationItem({
           onClose={newAssociationModal.onClose}
           type={node.key}
           name={node.name}
-          itemId={itemId}
+          items={items}
         />
       )}
     </>
@@ -279,6 +284,8 @@ export function IssueAssociationItem({
 
 function getAssociationIcon(key: IssueAssociationKey) {
   switch (key) {
+    case "items":
+      return <AiOutlinePartition />;
     case "customers":
       return <LuSquareUser />;
     case "suppliers":
@@ -300,6 +307,26 @@ function getAssociationIcon(key: IssueAssociationKey) {
   }
 }
 
+function NewItemAssociation() {
+  const [itemType, setItemType] = useState<MethodItemType | "Item">("Item");
+  const onTypeChange = (t: MethodItemType | "Item") => {
+    setItemType(t as MethodItemType);
+  };
+
+  return (
+    <>
+      <Item
+        name="id"
+        label={itemType}
+        // @ts-ignore
+        type={itemType}
+        replenishmentSystem="Buy"
+        onTypeChange={onTypeChange}
+      />
+    </>
+  );
+}
+
 function NewCustomerAssociation() {
   return (
     <>
@@ -316,7 +343,7 @@ function NewSupplierAssociation() {
   );
 }
 
-function NewJobOperationAssociation({ itemId }: { itemId?: string }) {
+function NewJobOperationAssociation({ items }: { items?: string[] }) {
   const [jobs, setJobs] = useState<{ label: string; value: string }[]>([]);
 
   const [jobsAreLoading, setJobsAreLoading] = useState(true);
@@ -393,7 +420,7 @@ function NewJobOperationAssociation({ itemId }: { itemId?: string }) {
   );
 }
 
-function NewPurchaseOrderLineAssociation({ itemId }: { itemId?: string }) {
+function NewPurchaseOrderLineAssociation({ items }: { items?: string[] }) {
   const [purchaseOrders, setPurchaseOrders] = useState<
     { label: string; value: string }[]
   >([]);
@@ -446,8 +473,8 @@ function NewPurchaseOrderLineAssociation({ itemId }: { itemId?: string }) {
       .select("id, itemId, item(name)")
       .eq("purchaseOrderId", purchaseOrderId);
 
-    if (itemId) {
-      query = query.eq("itemId", itemId);
+    if (items) {
+      query = query.in("itemId", items);
     }
 
     const { data, error } = await query;
@@ -497,7 +524,7 @@ function NewPurchaseOrderLineAssociation({ itemId }: { itemId?: string }) {
   );
 }
 
-function NewSalesOrderLineAssociation({ itemId }: { itemId?: string }) {
+function NewSalesOrderLineAssociation({ items }: { items?: string[] }) {
   const { carbon } = useCarbon();
   const [salesOrders, setSalesOrders] = useState<
     { label: string; value: string }[]
@@ -548,8 +575,8 @@ function NewSalesOrderLineAssociation({ itemId }: { itemId?: string }) {
       .select("id, itemId, item(name)")
       .eq("salesOrderId", salesOrderId);
 
-    if (itemId) {
-      query = query.eq("itemId", itemId);
+    if (items) {
+      query = query.in("itemId", items);
     }
 
     const { data, error } = await query;
@@ -599,9 +626,9 @@ function NewSalesOrderLineAssociation({ itemId }: { itemId?: string }) {
   );
 }
 
-function NewShipmentLineAssociation({ itemId }: { itemId?: string }) {
+function NewShipmentLineAssociation({ items }: { items?: string[] }) {
   const { carbon } = useCarbon();
-  const [items] = useItems();
+  const [storedItems] = useItems();
   const [shipments, setShipments] = useState<
     { label: string; value: string }[]
   >([]);
@@ -644,8 +671,8 @@ function NewShipmentLineAssociation({ itemId }: { itemId?: string }) {
       .select("id, itemId")
       .eq("shipmentId", shipmentId);
 
-    if (itemId) {
-      query = query.eq("itemId", itemId);
+    if (items) {
+      query = query.in("itemId", items);
     }
 
     const { data, error } = await query;
@@ -656,7 +683,7 @@ function NewShipmentLineAssociation({ itemId }: { itemId?: string }) {
 
     setShipmentLines(
       data?.map((line) => ({
-        label: getItemReadableId(items, line.itemId) ?? `Line ${line.id}`,
+        label: getItemReadableId(storedItems, line.itemId) ?? `Line ${line.id}`,
         value: line.id,
       })) ?? []
     );
@@ -695,9 +722,9 @@ function NewShipmentLineAssociation({ itemId }: { itemId?: string }) {
   );
 }
 
-function NewReceiptLineAssociation({ itemId }: { itemId?: string }) {
+function NewReceiptLineAssociation({ items }: { items?: string[] }) {
   const { carbon } = useCarbon();
-  const [items] = useItems();
+  const [storedItems] = useItems();
   const [receipts, setReceipts] = useState<{ label: string; value: string }[]>(
     []
   );
@@ -740,8 +767,8 @@ function NewReceiptLineAssociation({ itemId }: { itemId?: string }) {
       .select("id, itemId")
       .eq("receiptId", receiptId);
 
-    if (itemId) {
-      query = query.eq("itemId", itemId);
+    if (items) {
+      query = query.in("itemId", items);
     }
 
     const { data, error } = await query;
@@ -752,7 +779,7 @@ function NewReceiptLineAssociation({ itemId }: { itemId?: string }) {
 
     setReceiptLines(
       data?.map((line) => ({
-        label: getItemReadableId(items, line.itemId) ?? `Line ${line.id}`,
+        label: getItemReadableId(storedItems, line.itemId) ?? `Line ${line.id}`,
         value: line.id,
       })) ?? []
     );
@@ -791,7 +818,7 @@ function NewReceiptLineAssociation({ itemId }: { itemId?: string }) {
   );
 }
 
-function NewTrackedEntityAssociation({ itemId }: { itemId?: string }) {
+function NewTrackedEntityAssociation({ items }: { items?: string[] }) {
   const { carbon } = useCarbon();
   const [trackedEntities, setTrackedEntities] = useState<
     { label: string; value: string }[]
@@ -804,7 +831,7 @@ function NewTrackedEntityAssociation({ itemId }: { itemId?: string }) {
   });
 
   async function fetchTrackedEntities() {
-    if (!carbon || !itemId) {
+    if (!carbon || !items) {
       toast.error("Failed to load data");
       return;
     }
@@ -813,7 +840,7 @@ function NewTrackedEntityAssociation({ itemId }: { itemId?: string }) {
       .from("trackedEntity")
       .select("id")
       .eq("sourceDocument", "Item")
-      .eq("sourceDocumentId", itemId!);
+      .in("sourceDocumentId", items!);
 
     if (error) {
       toast.error("Failed to load tracked entities");
@@ -843,13 +870,13 @@ function NewAssociationModal({
   onClose,
   type,
   name,
-  itemId,
+  items,
 }: {
   open: boolean;
   onClose: () => void;
   type: IssueAssociationKey;
   name: string;
-  itemId?: string;
+  items?: string[];
 }) {
   const { id } = useParams();
   if (!id) throw new Error("No issue ID found");
@@ -868,22 +895,24 @@ function NewAssociationModal({
 
   function renderFields(type: IssueAssociationKey) {
     switch (type) {
+      case "items":
+        return <NewItemAssociation />;
       case "customers":
         return <NewCustomerAssociation />;
       case "suppliers":
         return <NewSupplierAssociation />;
       case "jobOperations":
-        return <NewJobOperationAssociation itemId={itemId} />;
+        return <NewJobOperationAssociation items={items} />;
       case "purchaseOrderLines":
-        return <NewPurchaseOrderLineAssociation itemId={itemId} />;
+        return <NewPurchaseOrderLineAssociation items={items} />;
       case "salesOrderLines":
-        return <NewSalesOrderLineAssociation itemId={itemId} />;
+        return <NewSalesOrderLineAssociation items={items} />;
       case "shipmentLines":
-        return <NewShipmentLineAssociation itemId={itemId} />;
+        return <NewShipmentLineAssociation items={items} />;
       case "receiptLines":
-        return <NewReceiptLineAssociation itemId={itemId} />;
+        return <NewReceiptLineAssociation items={items} />;
       case "trackedEntities":
-        return <NewTrackedEntityAssociation itemId={itemId} />;
+        return <NewTrackedEntityAssociation items={items} />;
       default:
         return null;
     }

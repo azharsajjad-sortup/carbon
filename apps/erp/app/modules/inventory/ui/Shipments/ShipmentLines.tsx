@@ -36,7 +36,7 @@ import {
   VStack,
 } from "@carbon/react";
 import type { TrackedEntityAttributes } from "@carbon/utils";
-import { labelSizes } from "@carbon/utils";
+import { getItemReadableId, labelSizes } from "@carbon/utils";
 import {
   Outlet,
   useFetcher,
@@ -71,7 +71,6 @@ import type {
 import { splitValidator } from "~/modules/inventory";
 import type { action as shipmentLinesUpdateAction } from "~/routes/x+/shipment+/lines.update";
 import { useItems } from "~/stores";
-import { getItemReadableId } from "~/utils/items";
 import { path } from "~/utils/path";
 
 const ShipmentLines = () => {
@@ -210,6 +209,8 @@ const ShipmentLines = () => {
   );
 
   const isPosted = routeData?.shipment?.status === "Posted";
+  const isVoided = routeData?.shipment?.status === "Voided";
+  const isReadOnly = isPosted || isVoided;
 
   return (
     <>
@@ -256,7 +257,7 @@ const ShipmentLines = () => {
                           );
                         }) ?? false
                       }
-                      isReadOnly={isPosted}
+                      isReadOnly={isReadOnly}
                       onUpdate={onUpdateShipmentLine}
                       className={
                         index === shipmentLines.length - 1 ? "border-none" : ""
@@ -423,25 +424,27 @@ function ShipmentLineItem({
               <NumberField
                 value={line.shippedQuantity || 0}
                 onChange={(value) => {
+                  // Default to 0 if value is NaN, null, or undefined
+                  const safeValue = isNaN(value) || value == null ? 0 : value;
                   onUpdate({
                     lineId: line.id!,
                     field: "shippedQuantity",
-                    value,
+                    value: safeValue,
                   });
                   // Adjust serial numbers array size while preserving existing values
-                  if (value > serialNumbers.length) {
+                  if (safeValue > serialNumbers.length) {
                     onSerialNumbersChange([
                       ...serialNumbers,
                       ...Array.from(
-                        { length: value - serialNumbers.length },
+                        { length: safeValue - serialNumbers.length },
                         (_, i) => ({
                           index: i,
                           id: "",
                         })
                       ),
                     ]);
-                  } else if (value < serialNumbers.length) {
-                    onSerialNumbersChange(serialNumbers.slice(0, value));
+                  } else if (safeValue < serialNumbers.length) {
+                    onSerialNumbersChange(serialNumbers.slice(0, safeValue));
                   }
                 }}
               >
@@ -471,10 +474,8 @@ function ShipmentLineItem({
               </label>
               <HStack className="justify-center">
                 <span className="text-sm py-1.5">
-                  {isReadOnly
-                    ? (line.outstandingQuantity || 0) -
-                      (line.shippedQuantity || 0)
-                    : line.outstandingQuantity || 0}
+                  {(line.outstandingQuantity || 0) -
+                    (line.shippedQuantity || 0)}
                 </span>
 
                 {(line.shippedQuantity || 0) >

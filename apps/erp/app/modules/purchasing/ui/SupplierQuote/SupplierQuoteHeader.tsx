@@ -1,5 +1,11 @@
 import {
   Button,
+  Copy,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuIcon,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
   HStack,
   Heading,
   IconButton,
@@ -7,8 +13,15 @@ import {
 } from "@carbon/react";
 
 import { Link, useParams } from "@remix-run/react";
-import { LuPanelLeft, LuPanelRight, LuShoppingCart } from "react-icons/lu";
+import {
+  LuEllipsisVertical,
+  LuPanelLeft,
+  LuPanelRight,
+  LuShoppingCart,
+  LuTrash,
+} from "react-icons/lu";
 import { usePanels } from "~/components/Layout";
+import ConfirmDelete from "~/components/Modals/ConfirmDelete";
 
 import { usePermissions, useRouteData } from "~/hooks";
 
@@ -38,6 +51,7 @@ const SupplierQuoteHeader = () => {
   }>(path.to.supplierQuote(id));
 
   const convertToOrderModal = useDisclosure();
+  const deleteModal = useDisclosure();
 
   return (
     <>
@@ -55,6 +69,30 @@ const SupplierQuoteHeader = () => {
                 <span>{routeData?.quote?.supplierQuoteId}</span>
               </Heading>
             </Link>
+            <Copy text={routeData?.quote?.supplierQuoteId ?? ""} />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <IconButton
+                  aria-label="More options"
+                  icon={<LuEllipsisVertical />}
+                  variant="secondary"
+                  size="sm"
+                />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem
+                  disabled={
+                    !permissions.can("delete", "purchasing") ||
+                    !permissions.is("employee")
+                  }
+                  destructive
+                  onClick={deleteModal.onOpen}
+                >
+                  <DropdownMenuIcon icon={<LuTrash />} />
+                  Delete Supplier Quote
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <SupplierQuoteStatus status={routeData?.quote?.status} />
           </HStack>
           <HStack>
@@ -86,6 +124,20 @@ const SupplierQuoteHeader = () => {
         lines={routeData?.lines ?? []}
         pricing={routeData?.prices ?? []}
       />
+      {deleteModal.isOpen && (
+        <ConfirmDelete
+          action={path.to.deleteSupplierQuote(id)}
+          isOpen={deleteModal.isOpen}
+          name={routeData?.quote?.supplierQuoteId ?? "supplier quote"}
+          text={`Are you sure you want to delete ${routeData?.quote?.supplierQuoteId}? This cannot be undone.`}
+          onCancel={() => {
+            deleteModal.onClose();
+          }}
+          onSubmit={() => {
+            deleteModal.onClose();
+          }}
+        />
+      )}
     </>
   );
 };

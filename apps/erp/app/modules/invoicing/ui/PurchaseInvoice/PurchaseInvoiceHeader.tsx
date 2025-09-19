@@ -1,8 +1,10 @@
 import { useCarbon } from "@carbon/auth";
 import {
   Button,
+  Copy,
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuIcon,
   DropdownMenuItem,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
@@ -12,24 +14,27 @@ import {
   IconButton,
   useDisclosure,
 } from "@carbon/react";
+import { getItemReadableId } from "@carbon/utils";
 import { Link, useFetcher, useParams } from "@remix-run/react";
 import { useEffect, useState } from "react";
 import { flushSync } from "react-dom";
 import {
   LuCheckCheck,
   LuChevronDown,
+  LuEllipsisVertical,
   LuHandCoins,
   LuPanelLeft,
   LuPanelRight,
   LuShoppingCart,
+  LuTrash,
 } from "react-icons/lu";
 import { usePanels } from "~/components/Layout/Panels";
+import ConfirmDelete from "~/components/Modals/ConfirmDelete";
 import { usePermissions, useRouteData } from "~/hooks";
 import type { PurchaseInvoice, PurchaseInvoiceLine } from "~/modules/invoicing";
 import { PurchaseInvoicingStatus } from "~/modules/invoicing";
 import type { action as statusAction } from "~/routes/x+/purchase-invoice+/$invoiceId.status";
 import { useItems } from "~/stores";
-import { getItemReadableId } from "~/utils/items";
 import { path } from "~/utils/path";
 import PurchaseInvoicePostModal from "./PurchaseInvoicePostModal";
 
@@ -37,6 +42,7 @@ const PurchaseInvoiceHeader = () => {
   const permissions = usePermissions();
   const { invoiceId } = useParams();
   const postingModal = useDisclosure();
+  const deleteModal = useDisclosure();
   const statusFetcher = useFetcher<typeof statusAction>();
 
   const { carbon } = useCarbon();
@@ -154,6 +160,30 @@ const PurchaseInvoiceHeader = () => {
                 <span>{routeData?.purchaseInvoice?.invoiceId}</span>
               </Heading>
             </Link>
+            <Copy text={routeData?.purchaseInvoice?.invoiceId ?? ""} />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <IconButton
+                  aria-label="More options"
+                  icon={<LuEllipsisVertical />}
+                  variant="secondary"
+                  size="sm"
+                />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem
+                  disabled={
+                    !permissions.can("delete", "invoicing") ||
+                    !permissions.is("employee")
+                  }
+                  destructive
+                  onClick={deleteModal.onOpen}
+                >
+                  <DropdownMenuIcon icon={<LuTrash />} />
+                  Delete Purchase Invoice
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <PurchaseInvoicingStatus
               status={routeData?.purchaseInvoice?.status}
             />
@@ -280,6 +310,20 @@ const PurchaseInvoiceHeader = () => {
           isOpen={postingModal.isOpen}
           onClose={postingModal.onClose}
           linesToReceive={linesNotAssociatedWithPO}
+        />
+      )}
+      {deleteModal.isOpen && (
+        <ConfirmDelete
+          action={path.to.deletePurchaseInvoice(invoiceId)}
+          isOpen={deleteModal.isOpen}
+          name={routeData?.purchaseInvoice?.invoiceId ?? "purchase invoice"}
+          text={`Are you sure you want to delete ${routeData?.purchaseInvoice?.invoiceId}? This cannot be undone.`}
+          onCancel={() => {
+            deleteModal.onClose();
+          }}
+          onSubmit={() => {
+            deleteModal.onClose();
+          }}
         />
       )}
     </>

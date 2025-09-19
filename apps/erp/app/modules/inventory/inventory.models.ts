@@ -52,6 +52,27 @@ export const trackedEntityStatus = [
   "Reserved",
 ] as const;
 
+export const replenishmentSystemTypes = [
+  "Buy",
+  "Make",
+  "Buy and Make",
+] as const;
+
+export const receiptSourceDocumentType = [
+  // "Sales Order",
+  // "Sales Invoice",
+  // "Sales Return Order",
+  "Purchase Order",
+  "Purchase Invoice",
+  // "Purchase Return Order",
+  "Inbound Transfer",
+  // "Outbound Transfer",
+  // "Manufacturing Consumption",
+  // "Manufacturing Output",
+] as const;
+
+export const receiptStatusType = ["Draft", "Pending", "Posted"] as const;
+
 export const batchPropertyValidator = z
   .object({
     id: zfd.text(z.string().optional()),
@@ -96,20 +117,28 @@ export const itemLedgerValidator = z.object({
   quantity: z.number(),
 });
 
-export const receiptSourceDocumentType = [
-  // "Sales Order",
-  // "Sales Invoice",
-  // "Sales Return Order",
-  "Purchase Order",
-  "Purchase Invoice",
-  // "Purchase Return Order",
-  "Inbound Transfer",
-  // "Outbound Transfer",
-  // "Manufacturing Consumption",
-  // "Manufacturing Output",
-] as const;
-
-export const receiptStatusType = ["Draft", "Pending", "Posted"] as const;
+export const kanbanValidator = z
+  .object({
+    id: zfd.text(z.string().optional()),
+    itemId: z.string().min(1, { message: "Item is required" }),
+    replenishmentSystem: z.enum(replenishmentSystemTypes).default("Buy"),
+    autoRelease: zfd.checkbox(),
+    quantity: zfd.numeric(
+      z.number().int().min(1, { message: "Quantity must be at least 1" })
+    ),
+    locationId: z.string().min(1, { message: "Location is required" }),
+    shelfId: zfd.text(z.string().optional()),
+    supplierId: zfd.text(z.string().optional()),
+    purchaseUnitOfMeasureCode: zfd.text(z.string().optional()),
+    conversionFactor: zfd.numeric(z.number().min(0).default(1)),
+  })
+  .refine(
+    (data) => (data.replenishmentSystem === "Buy" ? !!data.supplierId : true),
+    {
+      message: "Supplier is required",
+      path: ["supplierId"],
+    }
+  );
 
 export const receiptValidator = z.object({
   id: z.string().min(1),
@@ -130,7 +159,12 @@ export const shelfValidator = z.object({
   locationId: z.string().min(1, { message: "Location ID is required" }),
 });
 
-export const shipmentStatusType = ["Draft", "Pending", "Posted"] as const;
+export const shipmentStatusType = [
+  "Draft",
+  "Pending",
+  "Posted",
+  "Voided",
+] as const;
 
 export const shipmentSourceDocumentType = [
   "Sales Order",

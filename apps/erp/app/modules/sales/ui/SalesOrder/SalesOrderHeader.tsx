@@ -1,5 +1,6 @@
 import {
   Button,
+  Copy,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuIcon,
@@ -36,10 +37,12 @@ import {
   LuLoaderCircle,
   LuPanelLeft,
   LuPanelRight,
+  LuTrash,
   LuTruck,
 } from "react-icons/lu";
 
 import { usePanels } from "~/components/Layout";
+import ConfirmDelete from "~/components/Modals/ConfirmDelete";
 import { usePermissions, useRouteData } from "~/hooks";
 import type { action as confirmAction } from "~/routes/x+/sales-order+/$orderId.confirm";
 import type { action as statusAction } from "~/routes/x+/sales-order+/$orderId.status";
@@ -190,6 +193,7 @@ const SalesOrderHeader = () => {
 
   const salesOrderToJobsModal = useDisclosure();
   const confirmDisclosure = useDisclosure();
+  const deleteSalesOrderModal = useDisclosure();
   const [customers] = useCustomers();
 
   const csvExportData = useMemo(() => {
@@ -240,12 +244,14 @@ const SalesOrderHeader = () => {
                 <span>{routeData?.salesOrder?.salesOrderId}</span>
               </Heading>
             </Link>
+            <Copy text={routeData?.salesOrder?.salesOrderId ?? ""} />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <IconButton
                   aria-label="More options"
                   icon={<LuEllipsisVertical />}
-                  variant="ghost"
+                  variant="secondary"
+                  size="sm"
                 />
               </DropdownMenuTrigger>
               <DropdownMenuContent>
@@ -272,19 +278,17 @@ const SalesOrderHeader = () => {
                     Export Lines to CSV
                   </CSVLink>
                 </DropdownMenuItem>
-                {/* <DropdownMenuItem
+                <DropdownMenuItem
                   destructive
                   disabled={
                     !permissions.can("delete", "sales") ||
-                    !["Draft", "Needs Approval"].includes(
-                      routeData?.salesOrder?.status ?? ""
-                    )
+                    !permissions.is("employee")
                   }
                   onClick={deleteSalesOrderModal.onOpen}
                 >
                   <DropdownMenuIcon icon={<LuTrash />} />
                   Delete Sales Order
-                </DropdownMenuItem> */}
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
             <SalesStatus status={routeData?.salesOrder?.status} />
@@ -576,6 +580,21 @@ const SalesOrderHeader = () => {
           fetcher={confirmFetcher}
           salesOrder={routeData?.salesOrder}
           onClose={confirmDisclosure.onClose}
+        />
+      )}
+      {deleteSalesOrderModal.isOpen && (
+        <ConfirmDelete
+          action={path.to.deleteSalesOrder(orderId)}
+          isOpen={deleteSalesOrderModal.isOpen}
+          name={routeData?.salesOrder?.salesOrderId!}
+          text={`Are you sure you want to delete ${routeData?.salesOrder
+            ?.salesOrderId!}? This cannot be undone.`}
+          onCancel={() => {
+            deleteSalesOrderModal.onClose();
+          }}
+          onSubmit={() => {
+            deleteSalesOrderModal.onClose();
+          }}
         />
       )}
     </>

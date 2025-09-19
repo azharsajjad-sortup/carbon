@@ -1,4 +1,4 @@
-import { MenuIcon, MenuItem, useDisclosure } from "@carbon/react";
+import { Badge, MenuIcon, MenuItem, useDisclosure } from "@carbon/react";
 import { useNavigate } from "@remix-run/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { memo, useCallback, useMemo, useState } from "react";
@@ -24,7 +24,6 @@ import { useLocations } from "~/components/Form/Location";
 import { ConfirmDelete } from "~/components/Modals";
 import { usePermissions } from "~/hooks";
 import { useCustomColumns } from "~/hooks/useCustomColumns";
-import { getLinkToItemDetails } from "~/modules/items/ui/Item/ItemForm";
 import { useItems } from "~/stores/items";
 import { usePeople } from "~/stores/people";
 import type { ListItem } from "~/types";
@@ -76,33 +75,7 @@ const IssuesTable = memo(({ data, types, count }: IssuesTableProps) => {
           icon: <LuBookMarked />,
         },
       },
-      {
-        accessorKey: "itemId",
-        header: "Item",
-        cell: ({ row }) => {
-          const item = items.find((item) => item.id === row.original.itemId);
-          if (!item) return null;
-          // @ts-expect-error - TODO: fix this
-          const link = getLinkToItemDetails(item.type, item.id);
-          return (
-            <div className="flex flex-col text-sm">
-              <Hyperlink to={link}>{item.readableIdWithRevision}</Hyperlink>
-              <span className="text-xs text-muted-foreground">{item.name}</span>
-            </div>
-          );
-        },
-        meta: {
-          filter: {
-            type: "static",
-            options: items.map((item) => ({
-              label: item.name,
-              helperText: item.readableIdWithRevision,
-              value: item.id,
-            })),
-          },
-          icon: <LuSquareStack />,
-        },
-      },
+
       {
         accessorKey: "status",
         header: "Status",
@@ -222,6 +195,37 @@ const IssuesTable = memo(({ data, types, count }: IssuesTableProps) => {
           icon: <LuUser />,
         },
       },
+
+      {
+        id: "items",
+        header: "Items",
+        cell: ({ row }) => (
+          <span className="flex gap-2 items-center flex-wrap py-2">
+            {((row.original.items ?? []) as Array<string>).map((i) => {
+              const item = items.find((x) => x.id === i);
+              if (!item) return null;
+              return (
+                <Badge variant="outline" key={item?.id}>
+                  {item?.readableIdWithRevision}
+                </Badge>
+              );
+            })}
+          </span>
+        ),
+        meta: {
+          icon: <LuSquareStack />,
+          filter: {
+            type: "static",
+            options: items.map((item) => ({
+              value: item.id,
+              label: (
+                <Badge variant="outline">{item.readableIdWithRevision}</Badge>
+              ),
+            })),
+            isArray: true,
+          },
+        },
+      },
       {
         accessorKey: "openDate",
         header: "Open Date",
@@ -234,6 +238,31 @@ const IssuesTable = memo(({ data, types, count }: IssuesTableProps) => {
         accessorKey: "closeDate",
         header: "Closed Date",
         cell: ({ row }) => formatDate(row.original.closeDate),
+        meta: {
+          icon: <LuCalendar />,
+        },
+      },
+      {
+        accessorKey: "createdBy",
+        header: "Created By",
+        cell: ({ row }) => (
+          <EmployeeAvatar employeeId={row.original.createdBy} />
+        ),
+        meta: {
+          filter: {
+            type: "static",
+            options: people.map((employee) => ({
+              value: employee.id,
+              label: employee.name,
+            })),
+          },
+          icon: <LuUser />,
+        },
+      },
+      {
+        accessorKey: "createdAt",
+        header: "Created At",
+        cell: (item) => formatDate(item.getValue<string>()),
         meta: {
           icon: <LuCalendar />,
         },

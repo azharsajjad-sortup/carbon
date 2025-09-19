@@ -1,4 +1,4 @@
-import { MenuIcon, MenuItem, Status } from "@carbon/react";
+import { Badge, MenuIcon, MenuItem, Status } from "@carbon/react";
 import { useNavigate } from "@remix-run/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { memo, useCallback, useMemo } from "react";
@@ -9,6 +9,7 @@ import {
   LuFileText,
   LuOctagonX,
   LuPencil,
+  LuSquareStack,
   LuUser,
 } from "react-icons/lu";
 import { EmployeeAvatar, Hyperlink, Table } from "~/components";
@@ -16,6 +17,7 @@ import { EmployeeAvatar, Hyperlink, Table } from "~/components";
 import { formatDate } from "@carbon/utils";
 import { Enumerable } from "~/components/Enumerable";
 import { usePermissions } from "~/hooks";
+import { useItems } from "~/stores";
 import { usePeople } from "~/stores/people";
 import type { ListItem } from "~/types";
 import { path } from "~/utils/path";
@@ -36,6 +38,7 @@ const ActionsTable = memo(
     const permissions = usePermissions();
 
     const [people] = usePeople();
+    const [items] = useItems();
 
     const columns = useMemo<ColumnDef<QualityAction>[]>(() => {
       const defaultColumns: ColumnDef<QualityAction>[] = [
@@ -108,6 +111,36 @@ const ActionsTable = memo(
           },
         },
         {
+          id: "items",
+          header: "Items",
+          cell: ({ row }) => (
+            <span className="flex gap-2 items-center flex-wrap py-2">
+              {((row.original.items ?? []) as Array<string>).map((i) => {
+                const item = items.find((x) => x.id === i);
+                if (!item) return null;
+                return (
+                  <Badge variant="outline" key={item?.id}>
+                    {item?.readableIdWithRevision}
+                  </Badge>
+                );
+              })}
+            </span>
+          ),
+          meta: {
+            icon: <LuSquareStack />,
+            filter: {
+              type: "static",
+              options: items.map((item) => ({
+                value: item.id,
+                label: (
+                  <Badge variant="outline">{item.readableIdWithRevision}</Badge>
+                ),
+              })),
+              isArray: true,
+            },
+          },
+        },
+        {
           accessorKey: "dueDate",
           header: "Due Date",
           cell: ({ row }) => formatDate(row.original.dueDate),
@@ -170,7 +203,7 @@ const ActionsTable = memo(
         },
       ];
       return defaultColumns;
-    }, [requiredActions, people, issueTypes]);
+    }, [requiredActions, people, items, issueTypes]);
 
     const renderContextMenu = useCallback(
       (row: QualityAction) => {

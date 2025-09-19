@@ -1,5 +1,6 @@
 import {
   Button,
+  Copy,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuIcon,
@@ -8,6 +9,7 @@ import {
   DropdownMenuTrigger,
   HStack,
   Heading,
+  IconButton,
   SplitButton,
   useDisclosure,
 } from "@carbon/react";
@@ -18,10 +20,14 @@ import {
   LuChevronDown,
   LuCirclePlus,
   LuCreditCard,
+  LuEllipsisVertical,
   LuQrCode,
   LuShoppingCart,
+  LuTicketX,
+  LuTrash,
   LuTruck,
 } from "react-icons/lu";
+import ConfirmDelete from "~/components/Modals/ConfirmDelete";
 import { usePermissions, useRouteData } from "~/hooks";
 import type { ItemTracking, Shipment, ShipmentLine } from "~/modules/inventory";
 
@@ -34,6 +40,7 @@ import SalesInvoiceStatus from "~/modules/invoicing/ui/SalesInvoice/SalesInvoice
 import { path } from "~/utils/path";
 import ShipmentPostModal from "./ShipmentPostModal";
 import ShipmentStatus from "./ShipmentStatus";
+import ShipmentVoidModal from "./ShipmentVoidModal";
 
 const ShipmentHeader = () => {
   const { shipmentId } = useParams();
@@ -52,6 +59,8 @@ const ShipmentHeader = () => {
 
   const permissions = usePermissions();
   const postModal = useDisclosure();
+  const voidModal = useDisclosure();
+  const deleteModal = useDisclosure();
   const navigate = useNavigate();
 
   const canPost =
@@ -59,6 +68,7 @@ const ShipmentHeader = () => {
     routeData.shipmentLines.some((line) => (line.shippedQuantity ?? 0) !== 0);
 
   const isPosted = routeData.shipment.status === "Posted";
+  const isVoided = routeData.shipment.status === "Voided";
   // const isInvoiced = routeData.shipment.invoiced;
   const hasTrackingLabels = routeData.shipmentLineTracking.some(
     (line) => "Split Entity ID" in (line.attributes as TrackedEntityAttributes)
@@ -101,6 +111,30 @@ const ShipmentHeader = () => {
                 <span>{routeData?.shipment?.shipmentId}</span>
               </Heading>
             </Link>
+            <Copy text={routeData?.shipment?.shipmentId ?? ""} />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <IconButton
+                  aria-label="More options"
+                  icon={<LuEllipsisVertical />}
+                  variant="secondary"
+                  size="sm"
+                />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem
+                  disabled={
+                    !permissions.can("delete", "inventory") ||
+                    !permissions.is("employee")
+                  }
+                  destructive
+                  onClick={deleteModal.onOpen}
+                >
+                  <DropdownMenuIcon icon={<LuTrash />} />
+                  Delete Shipment
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <ShipmentStatus
               status={routeData?.shipment?.status}
               invoiced={routeData?.shipment?.invoiced}
@@ -217,7 +251,7 @@ const ShipmentHeader = () => {
                         ) : (
                           <Button
                             leftIcon={<LuCreditCard />}
-                            variant={"primary"}
+                            variant={isVoided ? "secondary" : "primary"}
                             isDisabled={!isPosted}
                             onClick={() => {
                               invoice(routeData?.shipment);
@@ -315,18 +349,47 @@ const ShipmentHeader = () => {
               </>
             )}
             <Button
-              variant={canPost && !isPosted ? "primary" : "secondary"}
+              variant={
+                canPost && !isPosted && !isVoided ? "primary" : "secondary"
+              }
               onClick={postModal.onOpen}
-              isDisabled={!canPost || isPosted || !permissions.is("employee")}
+              isDisabled={
+                !canPost || isPosted || isVoided || !permissions.is("employee")
+              }
               leftIcon={<LuCheckCheck />}
             >
               Post
             </Button>
+            {(isPosted || isVoided) && (
+              <Button
+                variant="destructive"
+                onClick={voidModal.onOpen}
+                isDisabled={isVoided || !permissions.is("employee")}
+                leftIcon={<LuTicketX />}
+              >
+                Void
+              </Button>
+            )}
           </HStack>
         </HStack>
       </div>
 
       {postModal.isOpen && <ShipmentPostModal onClose={postModal.onClose} />}
+      {voidModal.isOpen && <ShipmentVoidModal onClose={voidModal.onClose} />}
+      {deleteModal.isOpen && (
+        <ConfirmDelete
+          action={path.to.deleteShipment(shipmentId)}
+          isOpen={deleteModal.isOpen}
+          name={routeData?.shipment?.shipmentId ?? "shipment"}
+          text={`Are you sure you want to delete ${routeData?.shipment?.shipmentId}? This cannot be undone.`}
+          onCancel={() => {
+            deleteModal.onClose();
+          }}
+          onSubmit={() => {
+            deleteModal.onClose();
+          }}
+        />
+      )}
     </>
   );
 };

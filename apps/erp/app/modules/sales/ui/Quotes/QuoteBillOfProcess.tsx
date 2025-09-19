@@ -37,7 +37,7 @@ import { Editor, generateHTML } from "@carbon/react/Editor";
 import { formatRelativeTime } from "@carbon/utils";
 import { getLocalTimeZone, today } from "@internationalized/date";
 import { useFetcher, useFetchers, useParams } from "@remix-run/react";
-import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
+import { AnimatePresence, LayoutGroup, motion, Reorder } from "framer-motion";
 import { nanoid } from "nanoid";
 import type { Dispatch, SetStateAction } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -47,6 +47,7 @@ import {
   LuCirclePlus,
   LuDollarSign,
   LuEllipsisVertical,
+  LuGripVertical,
   LuHammer,
   LuInfo,
   LuList,
@@ -81,22 +82,22 @@ import type { Item, SortableItemRenderProps } from "~/components/SortableList";
 import { SortableList, SortableListItem } from "~/components/SortableList";
 import { usePermissions, useRouteData, useUser } from "~/hooks";
 import type {
-  OperationAttribute,
   OperationParameter,
+  OperationStep,
   OperationTool,
 } from "~/modules/shared";
 import {
   methodOperationOrders,
-  operationAttributeValidator,
   operationParameterValidator,
+  operationStepValidator,
   operationToolValidator,
   operationTypes,
-  procedureAttributeType,
+  procedureStepType,
 } from "~/modules/shared";
 
-import type { action as editQuoteOperationAttributeAction } from "~/routes/x+/quote+/methods+/operation.attribute.$id";
 import type { action as editQuoteOperationParameterAction } from "~/routes/x+/quote+/methods+/operation.parameter.$id";
 import type { action as newQuoteOperationParameterAction } from "~/routes/x+/quote+/methods+/operation.parameter.new";
+import type { action as editQuoteOperationStepAction } from "~/routes/x+/quote+/methods+/operation.step.$id";
 import type { action as editQuoteOperationToolAction } from "~/routes/x+/quote+/methods+/operation.tool.$id";
 import type { action as newQuoteOperationToolAction } from "~/routes/x+/quote+/methods+/operation.tool.new";
 
@@ -105,7 +106,7 @@ import { SupplierProcessPreview } from "~/components/Form/SupplierProcess";
 import UnitOfMeasure, {
   useUnitOfMeasure,
 } from "~/components/Form/UnitOfMeasure";
-import { ProcedureAttributeTypeIcon } from "~/components/Icons";
+import { ProcedureStepTypeIcon } from "~/components/Icons";
 import { useTools } from "~/stores";
 import { getPrivateUrl, path } from "~/utils/path";
 import { quoteOperationValidator } from "../../sales.models";
@@ -125,7 +126,7 @@ type QuoteBillOfProcessProps = {
   operations: (Operation & {
     quoteOperationTool: OperationTool[];
     quoteOperationParameter: OperationParameter[];
-    quoteOperationAttribute: OperationAttribute[];
+    quoteOperationStep: OperationStep[];
   })[];
   tags: { name: string }[];
 };
@@ -209,7 +210,7 @@ function makeItem(
 
 const initialOperation: Omit<
   Operation,
-  "quoteMakeMethodId" | "order" | "quoteOperationTool"
+  "quoteMakeMethodId" | "order" | "quoteOperationTool" | "id"
 > = {
   description: "",
   laborRate: 0,
@@ -350,7 +351,7 @@ const QuoteBillOfProcess = ({
 
   const onUpdateWorkInstruction = useDebounce(
     async (content: JSONContent) => {
-      if (selectedItemId !== null && !isTemporaryId(selectedItemId))
+      if (selectedItemId !== null && !temporaryItems[selectedItemId])
         await carbon
           ?.from("quoteOperation")
           .update({
@@ -392,7 +393,7 @@ const QuoteBillOfProcess = ({
 
   // we create a temporary item and append it to the list
   const onAddItem = () => {
-    const temporaryId = Math.random().toString(16).slice(2);
+    const operationId = nanoid();
 
     let newOrder = 1;
     if (operations.length) {
@@ -401,16 +402,16 @@ const QuoteBillOfProcess = ({
 
     const newOperation: Operation = {
       ...initialOperation,
-      id: temporaryId,
+      id: operationId,
       order: newOrder,
       quoteMakeMethodId,
     };
 
     setTemporaryItems((prev) => ({
       ...prev,
-      [temporaryId]: newOperation,
+      [operationId]: newOperation,
     }));
-    setSelectedItemId(temporaryId);
+    setSelectedItemId(operationId);
   };
 
   const onRemoveItem = async (id: string) => {
@@ -419,7 +420,7 @@ const QuoteBillOfProcess = ({
     const operation = operationsById.get(id);
     if (!operation) return;
 
-    if (isTemporaryId(id)) {
+    if (temporaryItems[id]) {
       setTemporaryItems((prev) => {
         const { [id]: _, ...rest } = prev;
         return rest;
@@ -451,7 +452,7 @@ const QuoteBillOfProcess = ({
       },
     }));
     const updates = newItems.reduce<Record<string, number>>((acc, item) => {
-      if (!isTemporaryId(item.id)) {
+      if (!temporaryItems[item.id]) {
         acc[item.id] = item.data.order;
       }
       return acc;
@@ -495,9 +496,8 @@ const QuoteBillOfProcess = ({
     const parameters =
       initialOperations.find((o) => o.id === item.id)
         ?.quoteOperationParameter ?? [];
-    const attributes =
-      initialOperations.find((o) => o.id === item.id)
-        ?.quoteOperationAttribute ?? [];
+    const steps =
+      initialOperations.find((o) => o.id === item.id)?.quoteOperationStep ?? [];
 
     const hasProcedure = !!item.data.procedureId;
 
@@ -524,6 +524,7 @@ const QuoteBillOfProcess = ({
                 setWorkInstructions={setWorkInstructions}
                 setSelectedItemId={setSelectedItemId}
                 setTemporaryItems={setTemporaryItems}
+                temporaryItems={temporaryItems}
               />
             </motion.div>
           </div>
@@ -531,7 +532,10 @@ const QuoteBillOfProcess = ({
       },
       {
         id: 1,
-        disabled: hasProcedure || item.data.operationType === "Outside",
+        disabled:
+          item.id in temporaryItems ||
+          hasProcedure ||
+          item.data.operationType === "Outside",
         label: (
           <span className="flex items-center gap-2">
             Instructions
@@ -585,7 +589,10 @@ const QuoteBillOfProcess = ({
 
       {
         id: 2,
-        disabled: hasProcedure || item.data.operationType === "Outside",
+        disabled:
+          item.id in temporaryItems ||
+          hasProcedure ||
+          item.data.operationType === "Outside",
         label: (
           <span className="flex items-center gap-2">
             <span>Parameters</span>
@@ -612,15 +619,19 @@ const QuoteBillOfProcess = ({
               parameters={parameters}
               operationId={item.id!}
               isDisabled={
-                selectedItemId === null || isTemporaryId(selectedItemId!)
+                selectedItemId === null || !!temporaryItems[selectedItemId!]
               }
+              temporaryItems={temporaryItems}
             />
           </div>
         ),
       },
       {
         id: 3,
-        disabled: hasProcedure || item.data.operationType === "Outside",
+        disabled:
+          item.id in temporaryItems ||
+          hasProcedure ||
+          item.data.operationType === "Outside",
         label: (
           <span className="flex items-center gap-2">
             <span>Steps</span>
@@ -636,26 +647,28 @@ const QuoteBillOfProcess = ({
                 </TooltipContent>
               </Tooltip>
             )}
-            {!hasProcedure && attributes.length > 0 && (
-              <Count count={attributes.length} />
+            {!hasProcedure && steps.length > 0 && (
+              <Count count={steps.length} />
             )}
           </span>
         ),
         content: (
           <div className="flex w-full flex-col py-4">
             <AttributesForm
-              attributes={attributes}
+              steps={steps}
               operationId={item.id!}
               isDisabled={
-                selectedItemId === null || isTemporaryId(selectedItemId!)
+                selectedItemId === null || !!temporaryItems[selectedItemId!]
               }
+              temporaryItems={temporaryItems}
             />
           </div>
         ),
       },
       {
         id: 4,
-        disabled: item.data.operationType === "Outside",
+        disabled:
+          item.id in temporaryItems || item.data.operationType === "Outside",
         label: (
           <span className="flex items-center gap-2">
             <span>Tools</span>
@@ -668,8 +681,9 @@ const QuoteBillOfProcess = ({
               tools={tools}
               operationId={item.id!}
               isDisabled={
-                selectedItemId === null || isTemporaryId(selectedItemId!)
+                selectedItemId === null || !!temporaryItems[selectedItemId!]
               }
+              temporaryItems={temporaryItems}
             />
           </div>
         ),
@@ -809,22 +823,62 @@ const QuoteBillOfProcess = ({
 
 export default QuoteBillOfProcess;
 
-export function isTemporaryId(id: string) {
-  return id.length < 20;
-}
-
 function AttributesForm({
   operationId,
   isDisabled,
-  attributes,
+  steps,
+  temporaryItems,
 }: {
   operationId: string;
   isDisabled: boolean;
-  attributes: OperationAttribute[];
+  steps: OperationStep[];
+  temporaryItems: TemporaryItems;
 }) {
   const fetcher = useFetcher<typeof newQuoteOperationParameterAction>();
-  const [type, setType] = useState<OperationAttribute["type"]>("Task");
+  const sortOrderFetcher = useFetcher<{ success: boolean }>();
+  const [type, setType] = useState<OperationStep["type"]>("Task");
   const [numericControls, setNumericControls] = useState<string[]>([]);
+
+  // Initialize sort order state based on existing steps
+  const [sortOrder, setSortOrder] = useState<string[]>(() =>
+    [...steps]
+      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+      .map((step) => step.id || "")
+  );
+
+  // Update sort order when steps change
+  useEffect(() => {
+    if (steps && steps.length > 0) {
+      const sorted = [...steps]
+        .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+        .map((step) => step.id || "");
+      setSortOrder(sorted);
+    }
+  }, [steps]);
+
+  const onReorder = (newOrder: string[]) => {
+    if (isDisabled) return;
+
+    const updates: Record<string, number> = {};
+    newOrder.forEach((id, index) => {
+      updates[id] = index + 1;
+    });
+    setSortOrder(newOrder);
+    updateSortOrder(updates);
+  };
+
+  const updateSortOrder = useDebounce(
+    (updates: Record<string, number>) => {
+      let formData = new FormData();
+      formData.append("updates", JSON.stringify(updates));
+      sortOrderFetcher.submit(formData, {
+        method: "post",
+        action: path.to.quoteOperationStepOrder(operationId),
+      });
+    },
+    1000,
+    true
+  );
 
   const [description, setDescription] = useState<JSONContent>({});
 
@@ -853,10 +907,10 @@ function AttributesForm({
 
   const typeOptions = useMemo(
     () =>
-      procedureAttributeType.map((type) => ({
+      procedureStepType.map((type) => ({
         label: (
           <HStack>
-            <ProcedureAttributeTypeIcon type={type} className="mr-2" />
+            <ProcedureStepTypeIcon type={type} className="mr-2" />
             {type}
           </HStack>
         ),
@@ -865,13 +919,13 @@ function AttributesForm({
     []
   );
 
-  if (isDisabled && isTemporaryId(operationId)) {
+  if (isDisabled && temporaryItems[operationId]) {
     return (
       <Alert className="max-w-[420px] mx-auto my-8">
         <LuTriangleAlert />
-        <AlertTitle>Cannot add attributes to unsaved operation</AlertTitle>
+        <AlertTitle>Cannot add steps to unsaved operation</AlertTitle>
         <AlertDescription>
-          Please save the operation before adding attributes.
+          Please save the operation before adding steps.
         </AlertDescription>
       </Alert>
     );
@@ -883,11 +937,11 @@ function AttributesForm({
       isLoading={fetcher.state !== "idle"}
       // this is a hack to re-render the editor component when the form is submitted with the default values
     >
-      <div className="p-6 border rounded-lg mb-6">
+      <div className="p-6 border rounded-lg bg-card mb-6">
         <ValidatedForm
-          action={path.to.newQuoteOperationAttribute}
+          action={path.to.newQuoteOperationStep}
           method="post"
-          validator={operationAttributeValidator}
+          validator={operationStepValidator}
           fetcher={fetcher}
           resetAfterSubmit
           defaultValues={{
@@ -900,10 +954,7 @@ function AttributesForm({
             maxValue: 0,
             listValues: [],
             sortOrder:
-              attributes.reduce(
-                (acc, a) => Math.max(acc, a.sortOrder ?? 0),
-                0
-              ) + 1,
+              steps.reduce((acc, a) => Math.max(acc, a.sortOrder ?? 0), 0) + 1,
             operationId,
           }}
           onSubmit={() => {
@@ -924,7 +975,7 @@ function AttributesForm({
                 value={type}
                 onChange={(option) => {
                   if (option) {
-                    setType(option.value as OperationAttribute["type"]);
+                    setType(option.value as OperationStep["type"]);
                   }
                 }}
               />
@@ -997,25 +1048,43 @@ function AttributesForm({
               isDisabled={isDisabled || fetcher.state !== "idle"}
               isLoading={fetcher.state !== "idle"}
             >
-              Add Step
+              Save Step
             </Submit>
           </VStack>
         </ValidatedForm>
       </div>
 
-      {attributes.length > 0 && (
-        <div className="border rounded-lg">
-          {[...attributes]
-            .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
-            .map((a, index) => (
-              <AttributesListItem
-                key={a.id}
-                attribute={a}
-                operationId={operationId}
-                typeOptions={typeOptions}
-                className={index === attributes.length - 1 ? "border-none" : ""}
-              />
-            ))}
+      {steps.length > 0 && (
+        <div className="border bg-card rounded-lg">
+          <Reorder.Group
+            axis="y"
+            values={sortOrder}
+            onReorder={onReorder}
+            className="w-full"
+          >
+            {sortOrder.map((stepId) => {
+              const step = steps.find((s) => s.id === stepId);
+              if (!step) return null;
+              const index = sortOrder.indexOf(stepId);
+              return (
+                <Reorder.Item
+                  key={stepId}
+                  value={stepId}
+                  dragListener={!isDisabled}
+                >
+                  <AttributesListItem
+                    attribute={step}
+                    operationId={operationId}
+                    typeOptions={typeOptions}
+                    isDisabled={isDisabled}
+                    className={
+                      index === sortOrder.length - 1 ? "border-none" : ""
+                    }
+                  />
+                </Reorder.Item>
+              );
+            })}
+          </Reorder.Group>
         </div>
       )}
     </Loading>
@@ -1026,11 +1095,13 @@ function AttributesListItem({
   attribute,
   operationId,
   typeOptions,
+  isDisabled = false,
   className,
 }: {
-  attribute: OperationAttribute;
+  attribute: OperationStep;
   operationId: string;
   typeOptions: { label: JSX.Element; value: string }[];
+  isDisabled?: boolean;
   className?: string;
 }) {
   const {
@@ -1048,7 +1119,7 @@ function AttributesListItem({
   const disclosure = useDisclosure();
   const deleteModalDisclosure = useDisclosure();
   const submitted = useRef(false);
-  const fetcher = useFetcher<typeof editQuoteOperationAttributeAction>();
+  const fetcher = useFetcher<typeof editQuoteOperationStepAction>();
 
   useEffect(() => {
     if (submitted.current && fetcher.state === "idle") {
@@ -1058,7 +1129,7 @@ function AttributesListItem({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetcher.state]);
 
-  const [type, setType] = useState<OperationAttribute["type"]>(attribute.type);
+  const [type, setType] = useState<OperationStep["type"]>(attribute.type);
 
   const [numericControls, setNumericControls] = useState<string[]>(() => {
     const controls = [];
@@ -1112,9 +1183,9 @@ function AttributesListItem({
     <div className={cn("border-b p-6", className)}>
       {disclosure.isOpen ? (
         <ValidatedForm
-          action={path.to.quoteOperationAttribute(id)}
+          action={path.to.quoteOperationStep(id)}
           method="post"
-          validator={operationAttributeValidator}
+          validator={operationStepValidator}
           fetcher={fetcher}
           resetAfterSubmit
           onSubmit={() => {
@@ -1138,7 +1209,7 @@ function AttributesListItem({
                 options={typeOptions}
                 onChange={(option) => {
                   if (option) {
-                    setType(option.value as OperationAttribute["type"]);
+                    setType(option.value as OperationStep["type"]);
                   }
                 }}
               />
@@ -1221,9 +1292,16 @@ function AttributesListItem({
       ) : (
         <div className="flex flex-1 justify-between items-center w-full">
           <HStack spacing={4} className="w-1/2">
+            <IconButton
+              aria-label="Drag handle"
+              icon={<LuGripVertical />}
+              variant="ghost"
+              disabled={isDisabled}
+              className="cursor-grab"
+            />
             <HStack spacing={4} className="flex-1">
               <div className="bg-muted border rounded-full flex items-center justify-center p-2">
-                <ProcedureAttributeTypeIcon type={type} />
+                <ProcedureStepTypeIcon type={type} />
               </div>
               <VStack spacing={0}>
                 <HStack>
@@ -1323,7 +1401,7 @@ function AttributesListItem({
       )}
       {deleteModalDisclosure.isOpen && (
         <ConfirmDelete
-          action={path.to.deleteQuoteOperationAttribute(id)}
+          action={path.to.deleteQuoteOperationStep(id)}
           isOpen={deleteModalDisclosure.isOpen}
           name={name}
           text={`Are you sure you want to delete the ${name} attribute from this operation? This cannot be undone.`}
@@ -1343,14 +1421,16 @@ function ParametersForm({
   operationId,
   isDisabled,
   parameters,
+  temporaryItems,
 }: {
   operationId: string;
   isDisabled: boolean;
   parameters: OperationParameter[];
+  temporaryItems: TemporaryItems;
 }) {
   const fetcher = useFetcher<typeof newQuoteOperationParameterAction>();
 
-  if (isDisabled && isTemporaryId(operationId)) {
+  if (isDisabled && temporaryItems[operationId]) {
     return (
       <Alert className="max-w-[420px] mx-auto my-8">
         <LuTriangleAlert />
@@ -1364,7 +1444,7 @@ function ParametersForm({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="p-6 border rounded-lg">
+      <div className="p-6 border rounded-lg bg-card">
         <ValidatedForm
           action={path.to.newQuoteOperationParameter}
           method="post"
@@ -1401,7 +1481,7 @@ function ParametersForm({
       </div>
 
       {parameters.length > 0 && (
-        <div className="border rounded-lg">
+        <div className="border bg-card rounded-lg">
           {[...parameters]
             .sort((a, b) =>
               String(a.id ?? "").localeCompare(String(b.id ?? ""))
@@ -1557,6 +1637,7 @@ function OperationForm({
   setWorkInstructions,
   setTemporaryItems,
   setSelectedItemId,
+  temporaryItems,
 }: {
   item: ItemWithData;
   isDisabled: boolean;
@@ -1564,56 +1645,27 @@ function OperationForm({
   setWorkInstructions: Dispatch<SetStateAction<PendingWorkInstructions>>;
   setTemporaryItems: Dispatch<SetStateAction<TemporaryItems>>;
   setSelectedItemId: Dispatch<SetStateAction<string | null>>;
+  temporaryItems: TemporaryItems;
 }) {
   const { quoteId, lineId } = useParams();
-  const { id: userId, company } = useUser();
+  const { company } = useUser();
   if (!quoteId) throw new Error("quoteId not found");
   if (!lineId) throw new Error("lineId not found");
 
   const fetcher = useFetcher<{ id: string }>();
   const { carbon } = useCarbon();
-  const addingWorkInstruction = useRef(false);
+
   const baseCurrency = company?.baseCurrencyCode ?? "USD";
 
   useEffect(() => {
     if (fetcher.data && fetcher.data.id) {
-      if (isTemporaryId(item.id) && carbon && !addingWorkInstruction.current) {
-        addingWorkInstruction.current = true;
-        carbon
-          .from("quoteOperation")
-          .update({
-            workInstruction: workInstruction,
-            createdAt: today(getLocalTimeZone()).toString(),
-            updatedBy: userId,
-          })
-          .eq("id", fetcher.data.id)
-          .then(() => {
-            setWorkInstructions((prev) => ({
-              ...prev,
-              [fetcher.data?.id!]: workInstruction,
-            }));
-            setSelectedItemId(null);
-            // Clear temporary item after successful save
-            setTemporaryItems((prev) => {
-              const { [item.id]: _, ...rest } = prev;
-              return rest;
-            });
-            addingWorkInstruction.current = false;
-          });
-      } else {
-        setSelectedItemId(null);
-      }
+      // Clear temporary item after successful save
+      setTemporaryItems((prev) => {
+        const { [item.id]: _, ...rest } = prev;
+        return rest;
+      });
     }
-  }, [
-    item.id,
-    fetcher.data,
-    setSelectedItemId,
-    carbon,
-    userId,
-    workInstruction,
-    setTemporaryItems,
-    setWorkInstructions,
-  ]);
+  }, [item.id, fetcher.data, setTemporaryItems]);
 
   const machineDisclosure = useDisclosure();
   const laborDisclosure = useDisclosure();
@@ -1776,7 +1828,7 @@ function OperationForm({
   return (
     <ValidatedForm
       action={
-        isTemporaryId(item.id)
+        temporaryItems[item.id]
           ? path.to.newQuoteOperation(quoteId, lineId)
           : path.to.quoteOperation(quoteId, lineId, item.id!)
       }
@@ -1785,11 +1837,6 @@ function OperationForm({
       validator={quoteOperationValidator}
       className="w-full flex flex-col gap-y-4"
       fetcher={fetcher}
-      onSubmit={() => {
-        if (!isTemporaryId(item.id)) {
-          setSelectedItemId(null);
-        }
-      }}
     >
       <div>
         <Hidden name="id" />
@@ -2451,14 +2498,16 @@ function ToolsForm({
   operationId,
   isDisabled,
   tools,
+  temporaryItems,
 }: {
   operationId: string;
   isDisabled: boolean;
   tools: OperationTool[];
+  temporaryItems: TemporaryItems;
 }) {
   const fetcher = useFetcher<typeof newQuoteOperationToolAction>();
 
-  if (isDisabled && isTemporaryId(operationId)) {
+  if (isDisabled && temporaryItems[operationId]) {
     return (
       <Alert className="max-w-[420px] mx-auto my-8">
         <LuTriangleAlert />
@@ -2499,7 +2548,7 @@ function ToolsForm({
               isDisabled={isDisabled || fetcher.state !== "idle"}
               isLoading={fetcher.state !== "idle"}
             >
-              Add New
+              Save Tool
             </Submit>
           </VStack>
         </ValidatedForm>

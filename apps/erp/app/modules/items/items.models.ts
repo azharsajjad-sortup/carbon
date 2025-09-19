@@ -216,7 +216,7 @@ export const methodMaterialValidator = z.object({
 
 export const methodOperationValidator = z
   .object({
-    id: zfd.text(z.string().optional()),
+    id: z.string().min(1, { message: "Operation ID is required" }),
     makeMethodId: z.string().min(0, { message: "Make method is required" }),
     order: zfd.numeric(z.number().min(0)),
     operationOrder: z.enum(methodOperationOrders, {
@@ -407,13 +407,13 @@ export const itemPurchasingValidator = z.object({
 export const itemUnitSalePriceValidator = z.object({
   itemId: z.string().min(1, { message: "Item ID is required" }),
   unitSalePrice: zfd.numeric(z.number().min(0)),
-  currencyCode: z.string().min(1, { message: "Currency is required" }),
-  salesUnitOfMeasureCode: z
-    .string()
-    .min(1, { message: "Unit of Measure is required" }),
-  salesBlocked: zfd.checkbox(),
-  priceIncludesTax: zfd.checkbox(),
-  allowInvoiceDiscount: zfd.checkbox(),
+  // currencyCode: z.string().min(1, { message: "Currency is required" }),
+  // salesUnitOfMeasureCode: z
+  //   .string()
+  //   .min(1, { message: "Unit of Measure is required" }),
+  // salesBlocked: zfd.checkbox(),
+  // priceIncludesTax: zfd.checkbox(),
+  // allowInvoiceDiscount: zfd.checkbox(),
 });
 
 export const materialDimensionValidator = z.object({

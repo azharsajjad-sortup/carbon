@@ -21,7 +21,7 @@ import {
   useMount,
   VStack,
 } from "@carbon/react";
-import { prettifyKeyboardShortcut } from "@carbon/utils";
+import { getItemReadableId, prettifyKeyboardShortcut } from "@carbon/utils";
 import { Await, Link, useNavigate, useParams } from "@remix-run/react";
 import { Suspense, useRef, useState } from "react";
 import {
@@ -53,7 +53,6 @@ import type { MethodItemType } from "~/modules/shared";
 import { methodItemType } from "~/modules/shared";
 import { useItems } from "~/stores/items";
 import { path } from "~/utils/path";
-import { getItemReadableId } from "~/utils/items";
 import type {
   Customer,
   SalesOrder,
@@ -133,6 +132,10 @@ export default function SalesOrderExplorer() {
     locationId:
       salesOrderData?.salesOrder?.locationId ?? defaults.locationId ?? "",
     taxPercent: salesOrderData?.customer?.taxPercent ?? 0,
+    promisedDate:
+      salesOrderData?.salesOrder?.receiptPromisedDate ??
+      salesOrderData?.salesOrder?.receiptRequestedDate ??
+      "",
     shippingCost: 0,
   };
 

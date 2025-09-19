@@ -13,8 +13,8 @@ import { setGenericQueryFilters } from "~/utils/query";
 import { sanitize } from "~/utils/supabase";
 import { getCurrencyByCode } from "../accounting";
 import type {
-  operationAttributeValidator,
   operationParameterValidator,
+  operationStepValidator,
   operationToolValidator,
 } from "../shared";
 import { upsertExternalLink } from "../shared/shared.service";
@@ -246,11 +246,11 @@ export async function deleteQuoteOperation(
   return client.from("quoteOperation").delete().eq("id", quoteOperationId);
 }
 
-export async function deleteQuoteOperationAttribute(
+export async function deleteQuoteOperationStep(
   client: SupabaseClient<Database>,
   id: string
 ) {
-  return client.from("quoteOperationAttribute").delete().eq("id", id);
+  return client.from("quoteOperationStep").delete().eq("id", id);
 }
 
 export async function deleteQuoteOperationParameter(
@@ -993,7 +993,8 @@ export async function getQuoteLinePricesByItemIds(
     .in("itemId", itemIds)
     .neq("quoteId", currentQuoteId)
     .order("quoteCreatedAt", { ascending: false })
-    .order("qty", { ascending: true });
+    .order("qty", { ascending: true })
+    .limit(10);
 }
 
 export async function getQuoteMaterials(
@@ -1073,7 +1074,7 @@ export async function getQuoteOperationsByMethodId(
   return client
     .from("quoteOperation")
     .select(
-      "*, quoteOperationTool(*), quoteOperationParameter(*), quoteOperationAttribute(*)"
+      "*, quoteOperationTool(*), quoteOperationParameter(*), quoteOperationStep(*)"
     )
     .eq("quoteMakeMethodId", quoteMakeMethodId)
     .order("order", { ascending: true });
@@ -1322,7 +1323,8 @@ export async function getSalesOrderLinesByItemIds(
     .select("*")
     .in("itemId", itemIds)
     .order("orderDate", { ascending: false })
-    .order("createdAt", { ascending: false });
+    .order("createdAt", { ascending: false })
+    .limit(10);
 }
 
 export async function getSalesOrderLine(
@@ -2394,6 +2396,13 @@ export async function upsertQuoteOperation(
         createdBy: string;
         customFields?: Json;
       })
+    | (z.infer<typeof quoteOperationValidator> & {
+        quoteId: string;
+        quoteLineId: string;
+        companyId: string;
+        createdBy: string;
+        customFields?: Json;
+      })
     | (Omit<z.infer<typeof quoteOperationValidator>, "id"> & {
         id: string;
         quoteId: string;
@@ -2402,30 +2411,30 @@ export async function upsertQuoteOperation(
         customFields?: Json;
       })
 ) {
-  if ("id" in operation) {
+  if ("createdBy" in operation) {
     return client
       .from("quoteOperation")
-      .update(sanitize(operation))
-      .eq("id", operation.id)
+      .insert([operation])
       .select("id")
       .single();
   }
   return client
     .from("quoteOperation")
-    .insert([operation])
+    .update(sanitize(operation))
+    .eq("id", operation.id)
     .select("id")
     .single();
 }
 
-export async function upsertQuoteOperationAttribute(
+export async function upsertQuoteOperationStep(
   client: SupabaseClient<Database>,
-  quoteOperationAttribute:
-    | (Omit<z.infer<typeof operationAttributeValidator>, "id"> & {
+  quoteOperationStep:
+    | (Omit<z.infer<typeof operationStepValidator>, "id"> & {
         companyId: string;
         createdBy: string;
       })
     | (Omit<
-        z.infer<typeof operationAttributeValidator>,
+        z.infer<typeof operationStepValidator>,
         "id" | "minValue" | "maxValue"
       > & {
         id: string;
@@ -2435,18 +2444,18 @@ export async function upsertQuoteOperationAttribute(
         updatedAt: string;
       })
 ) {
-  if ("createdBy" in quoteOperationAttribute) {
+  if ("createdBy" in quoteOperationStep) {
     return client
-      .from("quoteOperationAttribute")
-      .insert(quoteOperationAttribute)
+      .from("quoteOperationStep")
+      .insert(quoteOperationStep)
       .select("id")
       .single();
   }
 
   return client
-    .from("quoteOperationAttribute")
-    .update(sanitize(quoteOperationAttribute))
-    .eq("id", quoteOperationAttribute.id)
+    .from("quoteOperationStep")
+    .update(sanitize(quoteOperationStep))
+    .eq("id", quoteOperationStep.id)
     .select("id")
     .single();
 }
@@ -2700,12 +2709,27 @@ export async function upsertSalesOrder(
     salesOrder.exchangeRateUpdatedAt = new Date().toISOString();
   }
 
+  const { requestedDate, promisedDate, ...orderData } = salesOrder;
+
   const order = await client
     .from("salesOrder")
-    .insert([{ ...salesOrder, opportunityId: opportunity.data?.id }])
+    .insert([{ ...orderData, opportunityId: opportunity.data?.id }])
     .select("id, salesOrderId");
 
-  if (order.error) return order;
+  if (order.error) {
+    return order;
+  }
+
+  if (!order.data || order.data.length === 0) {
+    return {
+      error: {
+        message: "Sales order insert returned no data",
+        details:
+          "The insert operation completed but returned an empty result set",
+      } as PostgrestError,
+      data: null,
+    };
+  }
 
   const salesOrderId = order.data[0].id;
 
@@ -2715,6 +2739,8 @@ export async function upsertSalesOrder(
         id: salesOrderId,
         locationId: locationId,
         shippingMethodId: shippingMethodId,
+        receiptRequestedDate: requestedDate,
+        receiptPromisedDate: promisedDate,
         shippingTermId: shippingTermId,
         companyId: salesOrder.companyId,
       },
@@ -2733,7 +2759,7 @@ export async function upsertSalesOrder(
 
   if (shipment.error) {
     await deleteSalesOrder(client, salesOrderId);
-    return payment;
+    return shipment;
   }
   if (payment.error) {
     await deleteSalesOrder(client, salesOrderId);

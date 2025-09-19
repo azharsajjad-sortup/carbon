@@ -1,4 +1,7 @@
 import {
+  Alert,
+  AlertTitle,
+  Badge,
   cn,
   FormControl,
   FormLabel,
@@ -17,8 +20,10 @@ import {
 
 import { useCarbon } from "@carbon/auth";
 import { ValidatedForm } from "@carbon/form";
+import { getItemReadableId } from "@carbon/utils";
 import { useParams } from "@remix-run/react";
 import { useEffect, useState } from "react";
+import { LuCircleAlert } from "react-icons/lu";
 import type { z } from "zod";
 import { MethodIcon } from "~/components";
 import {
@@ -32,19 +37,25 @@ import {
   Shelf,
   Submit,
 } from "~/components/Form";
-import { usePermissions, useRouteData, useUser } from "~/hooks";
+import {
+  useCurrencyFormatter,
+  usePercentFormatter,
+  usePermissions,
+  useRouteData,
+  useUser,
+} from "~/hooks";
 import type { SalesInvoice } from "~/modules/invoicing";
 import { salesInvoiceLineValidator } from "~/modules/invoicing";
 import type { MethodItemType } from "~/modules/shared";
 import { methodType } from "~/modules/shared";
 import { useItems } from "~/stores";
-import { getItemReadableId } from "~/utils/items";
 import { path } from "~/utils/path";
 
 type SalesInvoiceLineFormProps = {
   initialValues: z.infer<typeof salesInvoiceLineValidator> & {
     taxPercent?: number;
   };
+  isSalesOrderLine?: boolean;
   type?: "card" | "modal";
   onClose?: () => void;
 };
@@ -52,6 +63,7 @@ type SalesInvoiceLineFormProps = {
 const SalesInvoiceLineForm = ({
   initialValues,
   type,
+  isSalesOrderLine = false,
   onClose,
 }: SalesInvoiceLineFormProps) => {
   const permissions = usePermissions();
@@ -118,7 +130,11 @@ const SalesInvoiceLineForm = ({
   ]);
 
   const isEditing = initialValues.id !== undefined;
+  const hasInvalidMethodType =
+    itemData.methodType === "Make" && !isSalesOrderLine;
   const isDisabled = !isEditable
+    ? true
+    : hasInvalidMethodType
     ? true
     : isEditing
     ? !permissions.can("update", "purchasing")
@@ -170,20 +186,13 @@ const SalesInvoiceLineForm = ({
 
         const itemCost = item?.data?.itemCost?.[0];
         const trackingType = item?.data?.itemTrackingType;
-        const methodType = item?.data?.defaultMethodType;
 
-        // Check if item requires a sales order
-        if (
-          trackingType === "Batch" ||
-          trackingType === "Serial" ||
-          methodType === "Make"
-        ) {
+        // Check if item requires a sales order (excluding Make items which can be changed to Pick)
+        if (trackingType === "Batch" || trackingType === "Serial") {
           const errorMessage =
             trackingType === "Batch"
               ? "Batch items require a sales order"
-              : trackingType === "Serial"
-              ? "Serial items require a sales order"
-              : "Make items require a sales order";
+              : "Serial items require a sales order";
           toast.error(errorMessage);
           setItemData({
             itemId: "",
@@ -248,9 +257,16 @@ const SalesInvoiceLineForm = ({
     }));
   };
 
+  const currencyFormatter = useCurrencyFormatter();
+  const percentFormatter = usePercentFormatter();
+
   return (
     <ModalCardProvider type={type}>
-      <ModalCard onClose={onClose}>
+      <ModalCard
+        onClose={onClose}
+        isCollapsible={isEditing}
+        defaultCollapsed={isEditing}
+      >
         <ModalCardContent size="xxlarge">
           <ValidatedForm
             defaultValues={initialValues}
@@ -277,9 +293,36 @@ const SalesInvoiceLineForm = ({
                   : "New Sales Invoice Line"}
               </ModalCardTitle>
               <ModalCardDescription>
-                {isEditing
-                  ? itemData?.description || itemType
-                  : "A sales invoice line contains invoice details for a particular item"}
+                {isEditing ? (
+                  <div className="flex flex-col items-start gap-1">
+                    <span>{itemData?.description}</span>
+                    <div className="flex items-center gap-2">
+                      <Badge
+                        variant="outline"
+                        className="flex items-center gap-2"
+                      >
+                        {initialValues?.quantity}{" "}
+                        <MethodIcon type={itemData.methodType} />
+                      </Badge>
+                      <Badge variant="green">
+                        {currencyFormatter.format(
+                          (initialValues?.unitPrice ?? 0) +
+                            (initialValues?.addOnCost ?? 0) +
+                            (initialValues?.shippingCost ?? 0)
+                        )}{" "}
+                        {initialValues?.unitOfMeasureCode}
+                      </Badge>
+                      {initialValues?.taxPercent > 0 ? (
+                        <Badge variant="red">
+                          {percentFormatter.format(initialValues?.taxPercent)}{" "}
+                          Tax
+                        </Badge>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : (
+                  "A sales invoice line contains invoice details for a particular item"
+                )}
               </ModalCardDescription>
             </ModalCardHeader>
             <ModalCardBody>
@@ -297,6 +340,15 @@ const SalesInvoiceLineForm = ({
               />
 
               <VStack>
+                {hasInvalidMethodType && (
+                  <Alert variant="destructive" className="mb-4">
+                    <LuCircleAlert className="w-4 h-4" />
+                    <AlertTitle>
+                      Make items cannot be invoiced directly. Change method to
+                      Pick to continue.
+                    </AlertTitle>
+                  </Alert>
+                )}
                 <div className="grid w-full gap-x-8 gap-y-4 grid-cols-1 lg:grid-cols-3">
                   <Item
                     name="itemId"
@@ -326,29 +378,31 @@ const SalesInvoiceLineForm = ({
                     itemType
                   ) && (
                     <>
-                      <SelectControlled
-                        name="methodType"
-                        label="Method"
-                        options={
-                          methodType.map((m) => ({
-                            label: (
-                              <span className="flex items-center gap-2">
-                                <MethodIcon type={m} />
-                                {m}
-                              </span>
-                            ),
-                            value: m,
-                          })) ?? []
-                        }
-                        value={itemData.methodType}
-                        onChange={(newValue) => {
-                          if (newValue)
-                            setItemData((d) => ({
-                              ...d,
-                              methodType: newValue?.value,
-                            }));
-                        }}
-                      />
+                      <div className="space-y-2">
+                        <SelectControlled
+                          name="methodType"
+                          label="Method"
+                          options={
+                            methodType.map((m) => ({
+                              label: (
+                                <span className="flex items-center gap-2">
+                                  <MethodIcon type={m} />
+                                  {m}
+                                </span>
+                              ),
+                              value: m,
+                            })) ?? []
+                          }
+                          value={itemData.methodType}
+                          onChange={(newValue) => {
+                            if (newValue)
+                              setItemData((d) => ({
+                                ...d,
+                                methodType: newValue?.value,
+                              }));
+                          }}
+                        />
+                      </div>
 
                       <NumberControlled
                         name="quantity"
@@ -398,7 +452,16 @@ const SalesInvoiceLineForm = ({
                         }
                       />
 
-                      <Number name="addOnCost" label="Add On Cost" />
+                      <Number
+                        name="addOnCost"
+                        label="Add On Cost"
+                        formatOptions={{
+                          style: "currency",
+                          currency:
+                            routeData?.salesInvoice?.currencyCode ??
+                            company.baseCurrencyCode,
+                        }}
+                      />
 
                       <NumberControlled
                         name="taxAmount"
