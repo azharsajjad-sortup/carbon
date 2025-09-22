@@ -11,6 +11,10 @@ import {
   ModalCardHeader,
   ModalCardProvider,
   ModalCardTitle,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
   VStack,
   cn,
   toast,
@@ -22,7 +26,7 @@ import { nanoid } from "nanoid";
 import { useEffect, useState } from "react";
 import { flushSync } from "react-dom";
 import { useDropzone } from "react-dropzone";
-import { LuCloudUpload } from "react-icons/lu";
+import { LuCloudUpload, LuInfo } from "react-icons/lu";
 import type { z } from "zod";
 import { TrackingTypeIcon } from "~/components";
 import {
@@ -243,11 +247,37 @@ const PartForm = ({ initialValues, type = "card", onClose }: PartFormProps) => {
                     isUppercase
                   />
                 )}
-                <Input
-                  name="revision"
-                  label="Revision"
-                  isReadOnly={isEditing}
-                />
+                <div className="relative">
+                  <Input
+                    name="revision"
+                    label="Revision"
+                    isReadOnly={isEditing}
+                  />
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          className="absolute top-0 left-[3.5rem] text-muted-foreground hover:text-foreground"
+                        >
+                          <LuInfo className="h-4 w-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">
+                        <div className="max-w-xs">
+                          <p className="font-medium">Revision Field</p>
+                          <p className="text-sm">
+                            Tracks versioning of records. Use to manage changes
+                            in BoMs, processes, etc.
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            Examples: 'Rev A', 'v1.1'
+                          </p>
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
 
                 <Input name="name" label="Short Description" />
 
