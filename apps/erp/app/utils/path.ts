@@ -1,13 +1,11 @@
-import { SUPABASE_URL } from "@carbon/auth";
+import { getMESUrl, SUPABASE_URL } from "@carbon/auth";
 import { generatePath } from "@remix-run/react";
 
 const x = "/x"; // from ~/routes/x+ folder
 const api = "/api"; // from ~/routes/api+ folder
 const file = "/file"; // from ~/routes/file+ folder
 const onboarding = "/onboarding"; // from ~/routes/onboarding+ folder
-const mes = SUPABASE_URL.includes("localhost")
-  ? "http://localhost:3001"
-  : "https://mes.carbon.ms";
+const mes = getMESUrl();
 
 export const path = {
   to: {
@@ -425,6 +423,9 @@ export const path = {
       ),
     customerPayment: (id: string) =>
       generatePath(`${x}/customer/${id}/payments`),
+    customerPortals: `${x}/sales/customer-portals`,
+    customerPortal: (id: string) =>
+      generatePath(`${x}/sales/customer-portals/${id}`),
     customerShipping: (id: string) =>
       generatePath(`${x}/customer/${id}/shipping`),
     customerStatus: (id: string) =>
@@ -985,9 +986,6 @@ export const path = {
     noQuoteReasons: `${x}/sales/no-quote-reasons`,
     noQuoteReason: (id: string) =>
       generatePath(`${x}/sales/no-quote-reasons/${id}`),
-    customerPortals: `${x}/sales/customer-portals`,
-    customerPortal: (id: string) =>
-      generatePath(`${x}/sales/customer-portals/${id}`),
     notificationSettings: `${x}/account/notifications`,
     part: (id: string) => generatePath(`${x}/part/${id}`),
     partCosting: (id: string) => generatePath(`${x}/part/${id}/view/costing`),
