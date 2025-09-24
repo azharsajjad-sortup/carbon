@@ -246,9 +246,11 @@ export async function getCheckoutUrl({
     success_url: `${getAppUrl()}/api/webhook/stripe`,
     cancel_url: `${getAppUrl()}/api/webhook/stripe`,
     payment_method_types: ["card", "us_bank_account", "cashapp"],
-    subscription_data: {
-      trial_period_days: plan.data.stripeTrialPeriodDays,
-    },
+    ...(plan.data.stripeTrialPeriodDays > 0 && {
+      subscription_data: {
+        trial_period_days: plan.data.stripeTrialPeriodDays,
+      },
+    }),
     metadata: {
       userId,
       companyId,
@@ -264,8 +266,10 @@ export async function getCheckoutUrl({
 
 export async function getBillingPortalRedirectUrl({
   companyId,
+  priceIds,
 }: {
   companyId: string;
+  priceIds?: string[];
 }) {
   if (!stripe) {
     throw new Error("Stripe is not initialized");
@@ -283,6 +287,7 @@ export async function getBillingPortalRedirectUrl({
   const portalSession = await stripe.billingPortal.sessions.create({
     customer: customerId,
     return_url: `${getAppUrl()}/x/settings/company`,
+    configuration: "",
   });
 
   if (!portalSession.url) {
