@@ -14,7 +14,8 @@ const Topbar = () => {
   const user = useUser();
   const notificationsKey = `${user.id}:${user.company.id}`;
 
-  const { isInternal } = useFlags();
+  const { isInternal, isControlledEnvironment } = useFlags();
+  const canAccessAgent = isInternal && !isControlledEnvironment;
 
   return (
     <div className="h-[49px] grid grid-cols-[1fr_200px_1fr] bg-background text-foreground px-4 top-0 sticky z-10 items-center">
@@ -27,7 +28,7 @@ const Topbar = () => {
       <HStack spacing={1} className="flex-1 justify-end py-2">
         <Feedback />
         <CreateMenu />
-        {isInternal && <Agent />}
+        {canAccessAgent && <Agent />}
         <Notifications key={notificationsKey} />
         <AvatarMenu />
       </HStack>

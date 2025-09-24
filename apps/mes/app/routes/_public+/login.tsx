@@ -2,8 +2,8 @@ import {
   assertIsPost,
   carbonClient,
   CarbonEdition,
+  CONTROLLED_ENVIRONMENT,
   error,
-  ITAR_ENVIRONMENT,
   magicLinkValidator,
 } from "@carbon/auth";
 import { sendMagicLink, verifyAuthSession } from "@carbon/auth/auth.server";
@@ -91,9 +91,10 @@ export async function action({ request }: ActionFunctionArgs) {
       );
     }
   } else {
+    // Enterprise edition does not support signup
     return json(
-      error(user, "User record not found"),
-      await flash(request, error(user.error, "User record not found"))
+      { success: false, message: "Invalid email/password combination" },
+      await flash(request, error(null, "Failed to sign in"))
     );
   }
 
@@ -126,7 +127,11 @@ export default function LoginRoute() {
   return (
     <>
       <div className="flex justify-center mb-4">
-        <img src="/carbon-logo-mark.svg" alt="Carbon Logo" className="w-36" />
+        <img
+          src={CONTROLLED_ENVIRONMENT ? "/flag.png" : "/carbon-logo-mark.svg"}
+          alt="Carbon Logo"
+          className="w-36"
+        />
       </div>
       <div className="rounded-lg md:bg-card md:border md:border-border md:shadow-lg p-8 w-[380px]">
         {fetcher.data?.success === true ? (
@@ -183,8 +188,8 @@ export default function LoginRoute() {
         )}
       </div>
       <div className="flex flex-col gap-4 text-sm text-center text-balance text-muted-foreground w-[380px]">
-        {ITAR_ENVIRONMENT && <ItarLoginDisclaimer />}
-        {CarbonEdition === Edition.Cloud && (
+        {CONTROLLED_ENVIRONMENT && <ItarLoginDisclaimer />}
+        {CarbonEdition !== Edition.Community && (
           <p>
             By signing in, you agree to the{" "}
             <a

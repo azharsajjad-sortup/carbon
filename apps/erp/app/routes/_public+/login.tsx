@@ -4,8 +4,8 @@ import {
   CarbonEdition,
   CLOUDFLARE_TURNSTILE_SECRET_KEY,
   CLOUDFLARE_TURNSTILE_SITE_KEY,
+  CONTROLLED_ENVIRONMENT,
   error,
-  ITAR_ENVIRONMENT,
   magicLinkValidator,
 } from "@carbon/auth";
 import { sendMagicLink, verifyAuthSession } from "@carbon/auth/auth.server";
@@ -98,7 +98,7 @@ export async function action({ request }: ActionFunctionArgs): FormActionData {
           "Content-Type": "application/x-www-form-urlencoded",
         },
         body: new URLSearchParams({
-          secret: CLOUDFLARE_TURNSTILE_SECRET_KEY,
+          secret: CLOUDFLARE_TURNSTILE_SECRET_KEY ?? "",
           response: turnstileToken ?? "",
           remoteip: ip,
         }),
@@ -106,7 +106,6 @@ export async function action({ request }: ActionFunctionArgs): FormActionData {
     );
 
     const verifyData = await verifyResponse.json();
-
     if (!verifyData.success) {
       return json(
         error(null, "Bot verification failed. Please try again."),
@@ -130,6 +129,12 @@ export async function action({ request }: ActionFunctionArgs): FormActionData {
       );
     }
     return json({ success: true, mode: "login" });
+  } else if (CarbonEdition === Edition.Enterprise) {
+    // Enterprise edition does not support signup
+    return json(
+      { success: false, message: "Invalid email/password combination" },
+      await flash(request, error(null, "Failed to sign in"))
+    );
   } else {
     // User doesn't exist, send verification code for signup
     const verificationSent = await sendVerificationCode(email);
@@ -191,7 +196,11 @@ export default function LoginRoute() {
   return (
     <>
       <div className="flex justify-center mb-4">
-        <img src="/carbon-logo-mark.svg" alt="Carbon Logo" className="w-36" />
+        <img
+          src={CONTROLLED_ENVIRONMENT ? "/flag.png" : "/carbon-logo-mark.svg"}
+          alt="Carbon Logo"
+          className="w-36"
+        />
       </div>
       <div className="rounded-lg md:bg-card md:border md:border-border md:shadow-lg p-8 w-[380px]">
         {fetcher.data?.success === true && fetcher.data?.mode === "login" ? (
@@ -250,7 +259,7 @@ export default function LoginRoute() {
               <Submit
                 isDisabled={
                   fetcher.state !== "idle" ||
-                  (CarbonEdition === Edition.Cloud && !turnstileToken)
+                  (!!CLOUDFLARE_TURNSTILE_SITE_KEY && !turnstileToken)
                 }
                 isLoading={fetcher.state === "submitting"}
                 size="lg"
@@ -259,7 +268,7 @@ export default function LoginRoute() {
               >
                 Continue with Email
               </Submit>
-              {CarbonEdition === Edition.Cloud && (
+              {!!CLOUDFLARE_TURNSTILE_SITE_KEY && (
                 <div className="w-full flex justify-center">
                   <Turnstile
                     siteKey={CLOUDFLARE_TURNSTILE_SITE_KEY}
@@ -290,11 +299,13 @@ export default function LoginRoute() {
       </div>
 
       <div className="flex flex-col gap-4 text-sm text-center text-balance text-muted-foreground w-[380px]">
-        {mode !== "verify" && fetcher.data?.success !== true && (
-          <p>Login or create a new account</p>
-        )}
-        {ITAR_ENVIRONMENT && <ItarLoginDisclaimer />}
-        {CarbonEdition === Edition.Cloud && (
+        {mode !== "verify" &&
+          fetcher.data?.success !== true &&
+          CarbonEdition !== Edition.Enterprise && (
+            <p>Login or create a new account</p>
+          )}
+        {CONTROLLED_ENVIRONMENT && <ItarLoginDisclaimer />}
+        {CarbonEdition !== Edition.Community && (
           <p>
             By signing in, you agree to the{" "}
             <a
