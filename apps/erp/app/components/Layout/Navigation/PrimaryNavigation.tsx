@@ -9,7 +9,13 @@ export const ModuleHandle = z.object({
   module: z.string(),
 });
 
-const PrimaryNavigation = () => {
+interface PrimaryNavigationProps {
+  sidebarVisible?: boolean;
+}
+
+const PrimaryNavigation = ({
+  sidebarVisible = true,
+}: PrimaryNavigationProps) => {
   const navigationPanel = useDisclosure();
   const location = useOptimisticLocation();
   const currentModule = getModule(location.pathname);
@@ -24,6 +30,10 @@ const PrimaryNavigation = () => {
 
     return acc;
   }, new Set<string>());
+
+  if (!sidebarVisible) {
+    return null;
+  }
 
   return (
     <div className="w-14 h-full flex-col z-50 hidden sm:flex">

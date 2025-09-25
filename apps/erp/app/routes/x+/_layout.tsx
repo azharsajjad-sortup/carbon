@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   CarbonEdition,
   CarbonProvider,
@@ -137,6 +138,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 export default function AuthenticatedRoute() {
   const { session, user } = useLoaderData<typeof loader>();
+  const [showSidebar] = useState(true);
 
   useNProgress();
   useKeyboardWedgeNavigation();
@@ -168,7 +170,7 @@ export default function AuthenticatedRoute() {
 
                 <Topbar />
                 <div className="flex flex-1 h-[calc(100vh-49px)] relative">
-                  <PrimaryNavigation />
+                  <PrimaryNavigation sidebarVisible={showSidebar} />
                   <main className="flex-1 overflow-y-auto scrollbar-hide border-l border-t bg-muted sm:rounded-tl-2xl relative z-10">
                     <Outlet />
                   </main>
