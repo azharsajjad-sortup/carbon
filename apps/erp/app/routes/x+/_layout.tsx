@@ -139,7 +139,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 export default function AuthenticatedRoute() {
   const { session, user } = useLoaderData<typeof loader>();
-  const [showSidebar] = useState(false);
+  const [showSidebar] = useState(true);
 
   useNProgress();
   useKeyboardWedgeNavigation();
