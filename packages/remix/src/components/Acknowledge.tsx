@@ -1,7 +1,6 @@
 import type { useDisclosure } from "@carbon/react";
 import {
   Button,
-  IconButton,
   Modal,
   ModalBody,
   ModalContent,
@@ -12,47 +11,53 @@ import {
 } from "@carbon/react";
 import { Form, useFetcher } from "@remix-run/react";
 import { useEffect } from "react";
-import { LuArrowUpRight, LuX } from "react-icons/lu";
+// import { LuArrowUpRight, LuX } from "react-icons/lu";
 
 export function AcademyBanner({
   acknowledgeAction,
 }: {
   acknowledgeAction: string;
 }) {
-  const fetcher = useFetcher<{}>();
+  // const fetcher = useFetcher<{}>();
 
-  return (
-    <div className="fixed bottom-3 left-1/2 -translate-x-1/2 flex items-center justify-between gap-10  bg-[#212278] dark:bg-[#2f31ae] text-white py-1 px-2 rounded-lg z-50 shadow-md">
-      <div />
-      <fetcher.Form method="post" action={acknowledgeAction}>
-        <input type="hidden" name="intent" value="academy" />
-        <input
-          type="hidden"
-          name="redirectTo"
-          value="https://learn.carbon.ms"
-        />
-        <Button
-          type="submit"
-          variant="ghost"
-          size="lg"
-          className="hover:bg-transparent text-white hover:text-white"
-          rightIcon={<LuArrowUpRight />}
-        >
-          <span>Introducing Carbon Academy</span>
-        </Button>
-      </fetcher.Form>
-      <fetcher.Form method="post" action={acknowledgeAction}>
-        <input type="hidden" name="intent" value="academy" />
-        <IconButton
-          type="submit"
-          aria-label="Close"
-          variant="ghost"
-          className="text-white dark:text-white hover:text-white"
-          icon={<LuX />}
-        />
-      </fetcher.Form>
-    </div>
-  );
+  /*
+   * Temporarily commented out Academy banner UI
+   *
+   * return (
+   *   <div className="fixed bottom-3 left-1/2 -translate-x-1/2 flex items-center justify-between gap-10  bg-[#212278] dark:bg-[#2f31ae] text-white py-1 px-2 rounded-lg z-50 shadow-md">
+   *     <div />
+   *     <fetcher.Form method="post" action={acknowledgeAction}>
+   *       <input type="hidden" name="intent" value="academy" />
+   *       <input
+   *         type="hidden"
+   *         name="redirectTo"
+   *         value="https://learn.carbon.ms"
+   *       />
+   *       <Button
+   *         type="submit"
+   *         variant="ghost"
+   *         size="lg"
+   *         className="hover:bg-transparent text-white hover:text-white"
+   *         rightIcon={<LuArrowUpRight />}
+   *       >
+   *         <span>Introducing Carbon Academy</span>
+   *       </Button>
+   *     </fetcher.Form>
+   *     <fetcher.Form method="post" action={acknowledgeAction}>
+   *       <input type="hidden" name="intent" value="academy" />
+   *       <IconButton
+   *         type="submit"
+   *         aria-label="Close"
+   *         variant="ghost"
+   *         className="text-white dark:text-white hover:text-white"
+   *         icon={<LuX />}
+   *       />
+   *     </fetcher.Form>
+   *   </div>
+   * );
+   */
+
+  return null;
 }
 
 export function ItarLoginDisclaimer() {
