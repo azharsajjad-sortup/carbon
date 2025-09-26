@@ -70,6 +70,11 @@ const PartForm = ({ initialValues, type = "card", onClose }: PartFormProps) => {
   const [modelUploadId, setModelUploadId] = useState<string | null>(null);
   const [modelIsUploading, setModelIsUploading] = useState(false);
   const [modelFile, setModelFile] = useState<File | null>(null);
+  const [barcodeImagePath, setBarcodeImagePath] = useState<string | null>(
+    initialValues?.barcodeImagePath ?? null
+  );
+  const [barcodeIsUploading, setBarcodeIsUploading] = useState(false);
+  const [barcodeFile, setBarcodeFile] = useState<File | null>(null);
   const { carbon } = useCarbon();
   const {
     company: { id: companyId },
@@ -106,6 +111,32 @@ const PartForm = ({ initialValues, type = "card", onClose }: PartFormProps) => {
     }
 
     setModelIsUploading(false);
+  };
+
+  const barcodeUpload = async (file: File) => {
+    if (!carbon) return;
+    flushSync(() => setBarcodeIsUploading(true));
+
+    const barcodeId = nanoid();
+    const fileExtension = file.name.split(".").pop();
+    const fileName = `${companyId}/barcodes/${barcodeId}.${fileExtension}`;
+
+    const fileUpload = await carbon.storage
+      .from("private")
+      .upload(fileName, file);
+    if (fileUpload.error) {
+      toast.error("Failed to upload barcode image");
+    } else {
+      setBarcodeImagePath(fileName);
+      setBarcodeFile(file);
+      toast.success("Uploaded barcode image");
+    }
+    setBarcodeIsUploading(false);
+  };
+
+  const removeBarcode = () => {
+    setBarcodeImagePath(null);
+    setBarcodeFile(null);
   };
 
   const removeModel = () => {
@@ -145,6 +176,23 @@ const PartForm = ({ initialValues, type = "card", onClose }: PartFormProps) => {
         message = errors[0].message;
       }
       toast.error(message);
+    },
+  });
+
+  const {
+    getRootProps: getBarcodeRootProps,
+    getInputProps: getBarcodeInputProps,
+    isDragActive: isBarcodeDragActive,
+  } = useDropzone({
+    multiple: false,
+    accept: { "image/*": [] },
+    onDropAccepted: async (acceptedFiles) => {
+      const file = acceptedFiles[0];
+      await barcodeUpload(file);
+    },
+    onDropRejected: (fileRejections) => {
+      const { errors } = fileRejections[0];
+      toast.error(errors[0]?.message ?? "Upload rejected");
     },
   });
 
@@ -215,6 +263,7 @@ const PartForm = ({ initialValues, type = "card", onClose }: PartFormProps) => {
             <ModalCardBody>
               <Hidden name="type" value={type} />
               <Hidden name="modelUploadId" value={modelUploadId ?? ""} />
+              <Hidden name="barcodeImagePath" value={barcodeImagePath ?? ""} />
               {!isEditing && replenishmentSystem === "Make" && (
                 <Hidden name="unitCost" value={initialValues.unitCost} />
               )}
@@ -246,6 +295,7 @@ const PartForm = ({ initialValues, type = "card", onClose }: PartFormProps) => {
                     isUppercase
                   />
                 )}
+                <Input name="serialNumber" label="Serial number" />
                 <div className="relative">
                   <Input
                     name="revision"
@@ -330,6 +380,48 @@ const PartForm = ({ initialValues, type = "card", onClose }: PartFormProps) => {
 
                 <CustomFormFields table="part" tags={initialValues.tags} />
               </div>
+              <VStack spacing={2} className="mt-4 w-full">
+                <label
+                  htmlFor="barcode-upload"
+                  className="text-xs font-medium text-muted-foreground"
+                >
+                  Barcode Image
+                </label>
+                <div
+                  {...getBarcodeRootProps()}
+                  className={`w-full border-2 border-dashed rounded-md p-6 text-center hover:border-primary hover:bg-primary/10 cursor-pointer ${
+                    isBarcodeDragActive
+                      ? "border-primary bg-primary/10"
+                      : "border-muted"
+                  }`}
+                >
+                  <input id="barcode-upload" {...getBarcodeInputProps()} />
+                  {barcodeFile ? (
+                    <>
+                      <p className="text-sm font-semibold text-card-foreground">
+                        {barcodeFile.name}
+                      </p>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="mt-2"
+                        onClick={removeBarcode}
+                      >
+                        Remove
+                      </Button>
+                    </>
+                  ) : (
+                    <Loading isLoading={barcodeIsUploading}>
+                      <LuCloudUpload className="mx-auto h-12 w-12 text-muted-foreground group-hover:text-primary-foreground" />
+                      <p className="text-xs text-muted-foreground group-hover:text-foreground">
+                        Supports common image types (jpeg, jpg, png, webp, svg,
+                        gif)
+                      </p>
+                    </Loading>
+                  )}
+                </div>
+              </VStack>
+
               <VStack spacing={2} className="mt-4 w-full">
                 <label
                   htmlFor="model-upload"
