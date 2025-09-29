@@ -2016,8 +2016,8 @@ export async function upsertPart(
         readableId: part.id,
         revision: part.revision ?? "0",
         name: part.name,
-        serialNumber: part.serialNumber,
-        barcodeImagePath: part.barcodeImagePath,
+        serialNumber: undefined,
+        barcodeUploadId: part.barcodeUploadId,
         type: "Part",
         replenishmentSystem: part.replenishmentSystem,
         defaultMethodType: part.defaultMethodType,
@@ -2032,6 +2032,17 @@ export async function upsertPart(
       .single();
     if (itemInsert.error) return itemInsert;
     const itemId = itemInsert.data?.id;
+    if (part.barcodeUploadId || part.serialNumber) {
+      const barcodeUpdate = await client
+        .from("barcodeUpload")
+        .update({
+          itemId: itemId,
+          updatedBy: part.createdBy,
+          serialNumber: part.serialNumber ?? undefined,
+        })
+        .eq("id", part.barcodeUploadId ?? "");
+      if (barcodeUpdate.error) return barcodeUpdate;
+    }
 
     const partInsert = await client.from("part").upsert({
       id: part.id,
@@ -2074,8 +2085,8 @@ export async function upsertPart(
     id: part.id,
     name: part.name,
     description: part.description,
-    serialNumber: part.serialNumber,
-    barcodeImagePath: part.barcodeImagePath,
+    serialNumber: undefined,
+    barcodeUploadId: part.barcodeUploadId,
     replenishmentSystem: part.replenishmentSystem,
     defaultMethodType: part.defaultMethodType,
     itemTrackingType: part.itemTrackingType,

@@ -39,6 +39,14 @@ export type ModelUpload = {
   thumbnailPath: string | null;
 };
 
+export type BarcodeUpload = {
+  barcodeId: string | null;
+  barcodeName: string | null;
+  barcodePath: string | null;
+  barcodeSize: number | null;
+  barcodeSerialNumber: string | null;
+};
+
 export type NavItem = Omit<Route, "icon"> & {
   icon: IconType;
   backgroundColor?: string;

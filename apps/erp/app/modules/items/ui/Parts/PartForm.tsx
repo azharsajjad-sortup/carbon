@@ -70,8 +70,8 @@ const PartForm = ({ initialValues, type = "card", onClose }: PartFormProps) => {
   const [modelUploadId, setModelUploadId] = useState<string | null>(null);
   const [modelIsUploading, setModelIsUploading] = useState(false);
   const [modelFile, setModelFile] = useState<File | null>(null);
-  const [barcodeImagePath, setBarcodeImagePath] = useState<string | null>(
-    initialValues?.barcodeImagePath ?? null
+  const [barcodeUploadId, setBarcodeUploadId] = useState<string | null>(
+    (initialValues as any)?.barcodeUploadId ?? null
   );
   const [barcodeIsUploading, setBarcodeIsUploading] = useState(false);
   const [barcodeFile, setBarcodeFile] = useState<File | null>(null);
@@ -121,13 +121,21 @@ const PartForm = ({ initialValues, type = "card", onClose }: PartFormProps) => {
     const fileExtension = file.name.split(".").pop();
     const fileName = `${companyId}/barcodes/${barcodeId}.${fileExtension}`;
 
-    const fileUpload = await carbon.storage
-      .from("private")
-      .upload(fileName, file);
-    if (fileUpload.error) {
+    const [fileUpload, recordInsert] = await Promise.all([
+      carbon.storage.from("private").upload(fileName, file),
+      carbon.from("barcodeUpload").insert({
+        id: barcodeId,
+        imagePath: fileName,
+        size: file.size,
+        name: file.name,
+        companyId: companyId,
+        createdBy: "system",
+      }),
+    ]);
+    if (fileUpload.error || recordInsert.error) {
       toast.error("Failed to upload barcode image");
     } else {
-      setBarcodeImagePath(fileName);
+      setBarcodeUploadId(barcodeId);
       setBarcodeFile(file);
       toast.success("Uploaded barcode image");
     }
@@ -135,7 +143,7 @@ const PartForm = ({ initialValues, type = "card", onClose }: PartFormProps) => {
   };
 
   const removeBarcode = () => {
-    setBarcodeImagePath(null);
+    setBarcodeUploadId(null);
     setBarcodeFile(null);
   };
 
@@ -263,7 +271,7 @@ const PartForm = ({ initialValues, type = "card", onClose }: PartFormProps) => {
             <ModalCardBody>
               <Hidden name="type" value={type} />
               <Hidden name="modelUploadId" value={modelUploadId ?? ""} />
-              <Hidden name="barcodeImagePath" value={barcodeImagePath ?? ""} />
+              <Hidden name="barcodeUploadId" value={barcodeUploadId ?? ""} />
               {!isEditing && replenishmentSystem === "Make" && (
                 <Hidden name="unitCost" value={initialValues.unitCost} />
               )}

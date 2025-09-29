@@ -458,7 +458,7 @@ export const partValidator = itemValidator.merge(
     id: z.string().min(1, { message: "Part ID is required" }).max(255),
     revision: z.string().min(1, { message: "Revision is required" }),
     serialNumber: zfd.text(z.string().optional()),
-    barcodeImagePath: zfd.text(z.string().optional()),
+    barcodeUploadId: zfd.text(z.string().optional()),
     modelUploadId: zfd.text(z.string().optional()),
     lotSize: zfd.numeric(z.number().min(0).optional()),
   })
