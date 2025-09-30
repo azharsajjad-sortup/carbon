@@ -2,12 +2,10 @@ import { redis } from "@carbon/kv";
 import { createCookieSessionStorage, redirect } from "@vercel/remix";
 
 import {
-  DOMAIN,
   REFRESH_ACCESS_TOKEN_THRESHOLD,
   SESSION_KEY,
   SESSION_MAX_AGE,
   SESSION_SECRET,
-  VERCEL_ENV,
 } from "../config/env";
 import type { AuthSession, Result } from "../types";
 import { getCurrentPath, isGet, makeRedirectToFromHere } from "../utils/http";
@@ -31,15 +29,29 @@ async function assertAuthSession(
   return authSession;
 }
 
+// const sessionStorage = createCookieSessionStorage({
+//   cookie: {
+//     name: "carbon",
+//     httpOnly: VERCEL_ENV === "production",
+//     path: "/",
+//     sameSite: "lax",
+//     secrets: [SESSION_SECRET],
+//     secure: VERCEL_ENV === "production",
+//     domain: VERCEL_ENV === "production" ? DOMAIN : undefined, // eg. carbon.ms
+//   },
+// });
+
+const isProd = process.env.VERCEL_ENV === "production";
+
 const sessionStorage = createCookieSessionStorage({
   cookie: {
     name: "carbon",
-    httpOnly: VERCEL_ENV === "production",
+    httpOnly: true,
     path: "/",
-    sameSite: "lax",
+    sameSite: "none",
+    secure: isProd, // ✅ only enforce secure in Vercel
     secrets: [SESSION_SECRET],
-    secure: VERCEL_ENV === "production",
-    domain: VERCEL_ENV === "production" ? DOMAIN : undefined, // eg. carbon.ms
+    domain: undefined,
   },
 });
 
