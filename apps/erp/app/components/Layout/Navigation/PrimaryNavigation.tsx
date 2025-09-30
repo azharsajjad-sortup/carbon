@@ -24,7 +24,7 @@ const PrimaryNavigation = () => {
 
     return acc;
   }, new Set<string>());
-
+  const hiddenModules: string[] = [];
   return (
     <div className="w-14 h-full flex-col z-50 hidden sm:flex">
       <nav
@@ -45,7 +45,9 @@ const PrimaryNavigation = () => {
           <VStack spacing={1}>
             {links.map((link) => {
               const m = getModule(link.to);
-
+              if (hiddenModules.includes(link.name)) {
+                return null;
+              }
               const moduleMatches = matchedModules.has(m);
 
               const isActive = currentModule === m || moduleMatches;
