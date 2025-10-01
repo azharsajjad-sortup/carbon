@@ -87,14 +87,17 @@ const AvatarMenu = () => {
             </Link>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-
-          <DropdownMenuItem asChild>
-            <Link to={path.to.apiIntroduction}>
-              <DropdownMenuIcon icon={<LuFileText />} />
-              API Documentation
-            </Link>
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
+          {/**
+           * Temporarily commenting out API Documentation menu item
+           *
+           * <DropdownMenuItem asChild>
+           *   <Link to={path.to.apiIntroduction}>
+           *     <DropdownMenuIcon icon={<LuFileText />} />
+           *     API Documentation
+           *   </Link>
+           * </DropdownMenuItem>
+           * <DropdownMenuSeparator />
+           */}
           <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
             <div className="flex items-center justify-between w-full">
               <div className="flex items-center justify-start">

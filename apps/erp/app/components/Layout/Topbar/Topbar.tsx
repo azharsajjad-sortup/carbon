@@ -5,7 +5,7 @@ import { useFlags } from "~/hooks/useFlags";
 import AvatarMenu from "../../AvatarMenu";
 import Breadcrumbs from "./Breadcrumbs";
 import CreateMenu from "./CreateMenu";
-import Feedback from "./Feedback";
+// import Feedback from "./Feedback";
 import Notifications from "./Notifications";
 import Search from "./Search";
 
@@ -26,7 +26,8 @@ const Topbar = () => {
         {permissions.is("employee") ? <Search /> : <div />}
       </div>
       <HStack spacing={1} className="flex-1 justify-end py-2">
-        <Feedback />
+        {/** Temporarily commented out Feedback button */}
+        {/** <Feedback /> */}
         <CreateMenu />
         {canAccessAgent && <Agent />}
         <Notifications key={notificationsKey} />

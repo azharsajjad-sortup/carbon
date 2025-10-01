@@ -17,7 +17,7 @@ import {
   useDisclosure,
   VStack,
 } from "@carbon/react";
-import { useParams } from "@remix-run/react";
+import { useNavigate, useParams } from "@remix-run/react";
 import { useState } from "react";
 import { flushSync } from "react-dom";
 import {
@@ -172,6 +172,7 @@ export function RevisionsItem({
   hasSizesInsteadOfRevisions?: boolean;
 }) {
   const { itemId } = useParams();
+  const navigate = useNavigate();
   const permissions = usePermissions();
   const revisionDisclosure = useDisclosure();
   const defaultDisclosure = useDisclosure();
@@ -276,16 +277,7 @@ export function RevisionsItem({
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem
-                          onSelect={() => {
-                            flushSync(() => {
-                              setSelectedRevision({
-                                id: child.id,
-                                type: node.key as "Part",
-                                revision: child.revision ?? "",
-                              });
-                              revisionDisclosure.onOpen();
-                            });
-                          }}
+                          onSelect={() => navigate(path.to.editPart(child.id))}
                         >
                           <DropdownMenuIcon icon={<LuPencil />} />
                           Edit

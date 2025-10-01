@@ -34,7 +34,7 @@ import type { FileObject } from "@supabase/storage-js";
 import type { ChangeEvent } from "react";
 import { useCallback } from "react";
 import { usePermissions, useUser } from "~/hooks";
-import type { ModelUpload } from "~/types";
+import type { ModelUpload , BarcodeUpload } from "~/types";
 import { path } from "~/utils/path";
 import { stripSpecialCharacters } from "~/utils/string";
 
@@ -42,6 +42,7 @@ type ItemDocumentsProps = {
   files: ItemFile[];
   itemId: string;
   modelUpload?: ModelUpload;
+  barcodeUpload?: BarcodeUpload;
   type: MethodItemType;
 };
 
@@ -49,6 +50,7 @@ const ItemDocuments = ({
   files,
   itemId,
   modelUpload,
+  barcodeUpload,
   type,
 }: ItemDocumentsProps) => {
   const {
@@ -57,6 +59,7 @@ const ItemDocuments = ({
     downloadModel,
     deleteFile,
     deleteModel,
+    deleteBarcode,
     getPath,
     getModelPath,
     upload,
@@ -85,6 +88,29 @@ const ItemDocuments = ({
   const allFiles = Array.from(attachmentsByName.values()).sort((a, b) =>
     a.name.localeCompare(b.name)
   ) as FileObject[];
+
+  const getBarcodePreviewUrl = (barcode: BarcodeUpload) =>
+    barcode?.barcodePath
+      ? path.to.file.previewFile(`private/${barcode.barcodePath}`)
+      : "";
+
+  const downloadBarcode = async (barcode: BarcodeUpload) => {
+    if (!barcode?.barcodePath || !barcode?.barcodeName) {
+      toast.error("Barcode data is missing");
+      return;
+    }
+    const url = getBarcodePreviewUrl(barcode);
+    const response = await fetch(url);
+    const blob = await response.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    document.body.appendChild(a);
+    a.href = blobUrl;
+    a.download = barcode.barcodeName;
+    a.click();
+    window.URL.revokeObjectURL(blobUrl);
+    document.body.removeChild(a);
+  };
 
   return (
     <Card className="flex-grow">
@@ -147,6 +173,62 @@ const ItemDocuments = ({
                           destructive
                           disabled={!canDelete}
                           onClick={() => deleteModel()}
+                        >
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </Td>
+              </Tr>
+            )}
+            {barcodeUpload?.barcodeId && (
+              <Tr>
+                <Td>
+                  <HStack>
+                    <DocumentIcon type="Image" />
+                    <Hyperlink
+                      target="_blank"
+                      to={getBarcodePreviewUrl(barcodeUpload)}
+                    >
+                      {barcodeUpload.barcodeName ?? "Barcode image"}
+                    </Hyperlink>
+                  </HStack>
+                </Td>
+                <Td className="text-xs font-mono">
+                  {barcodeUpload.barcodeSize
+                    ? convertKbToString(
+                        Math.floor((barcodeUpload.barcodeSize ?? 0) / 1024)
+                      )
+                    : "--"}
+                </Td>
+                <Td>
+                  <div className="flex justify-end w-full">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <IconButton
+                          aria-label="More"
+                          icon={<LuEllipsisVertical />}
+                          variant="secondary"
+                        />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent>
+                        <DropdownMenuItem asChild>
+                          <Link to={getBarcodePreviewUrl(barcodeUpload)}>
+                            View
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => downloadBarcode(barcodeUpload)}
+                        >
+                          Download
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          destructive
+                          disabled={!canDelete}
+                          onClick={() =>
+                            deleteBarcode(barcodeUpload.barcodeId ?? "")
+                          }
                         >
                           Delete
                         </DropdownMenuItem>
@@ -226,7 +308,7 @@ const ItemDocuments = ({
                 </Tr>
               );
             })}
-            {allFiles.length === 0 && !modelUpload && (
+            {allFiles.length === 0 && !modelUpload && !barcodeUpload && (
               <Tr>
                 <Td
                   colSpan={24}
@@ -360,6 +442,37 @@ export const useItemDocuments = ({ itemId, type }: Props) => {
     []
   );
 
+  const deleteBarcode = useCallback(
+    async (barcodeId: string) => {
+      if (!carbon) return;
+      // First clear the reference from item table
+      const { error: itemError } = await carbon
+        .from("item")
+        .update({ barcodeUploadId: null } as any)
+        .eq("id", itemId);
+
+      if (itemError) {
+        toast.error("Error removing barcode image from item");
+        return;
+      }
+
+      // Then delete the barcodeUpload record
+      const { error: barcodeError } = await (carbon as any)
+        .from("barcodeUpload")
+        .delete()
+        .eq("id", barcodeId);
+
+      if (barcodeError) {
+        toast.error("Error deleting barcode record");
+        return;
+      }
+
+      toast.success("Barcode image removed");
+      revalidator.revalidate();
+    },
+    [carbon, itemId, revalidator]
+  );
+
   const download = useCallback(
     async (file: FileObject) => {
       const url = path.to.file.previewFile(`private/${getPath(file)}`);
@@ -436,6 +549,7 @@ export const useItemDocuments = ({ itemId, type }: Props) => {
     canDelete,
     deleteFile,
     deleteModel,
+    deleteBarcode,
     download,
     downloadModel,
     getPath,

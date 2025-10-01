@@ -85,6 +85,7 @@ export const itemValidator = z.object({
     .string()
     .min(1, { message: "Unit of Measure is required" }),
   unitCost: zfd.numeric(z.number().nonnegative().optional()),
+  active: zfd.checkbox(),
 });
 
 export const configurationParameterGroupValidator = z.object({
@@ -457,6 +458,8 @@ export const partValidator = itemValidator.merge(
   z.object({
     id: z.string().min(1, { message: "Part ID is required" }).max(255),
     revision: z.string().min(1, { message: "Revision is required" }),
+    serialNumber: zfd.text(z.string().optional()),
+    barcodeUploadId: zfd.text(z.string().optional()),
     modelUploadId: zfd.text(z.string().optional()),
     lotSize: zfd.numeric(z.number().min(0).optional()),
   })

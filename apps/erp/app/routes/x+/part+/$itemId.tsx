@@ -31,12 +31,20 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   const { itemId } = params;
   if (!itemId) throw new Error("Could not find itemId");
 
-  const [partSummary, supplierParts, pickMethods, tags] = await Promise.all([
-    getPart(client, itemId, companyId),
-    getSupplierParts(client, itemId, companyId),
-    getPickMethods(client, itemId, companyId),
-    getTagsList(client, companyId, "part"),
-  ]);
+  const [partSummary, supplierParts, pickMethods, tags, barcode] =
+    await Promise.all([
+      getPart(client, itemId, companyId),
+      getSupplierParts(client, itemId, companyId),
+      getPickMethods(client, itemId, companyId),
+      getTagsList(client, companyId, "part"),
+      client
+        .from("barcodeUpload")
+        .select("id, imagePath, name, size, serialNumber")
+        .eq("itemId", itemId)
+        .order("createdAt", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
 
   if (partSummary.data?.companyId !== companyId) {
     throw redirect(path.to.items);
@@ -59,6 +67,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     pickMethods: pickMethods.data ?? [],
     makeMethods: getMakeMethods(client, itemId, companyId),
     tags: tags.data ?? [],
+    barcode: barcode.data ?? null,
   });
 }
 
