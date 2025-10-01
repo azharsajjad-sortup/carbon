@@ -445,16 +445,28 @@ export const useItemDocuments = ({ itemId, type }: Props) => {
   const deleteBarcode = useCallback(
     async (barcodeId: string) => {
       if (!carbon) return;
-      // Mirror model behavior: only clear the single pointer on the item
-      const { error } = await carbon
+      // First clear the reference from item table
+      const { error: itemError } = await carbon
         .from("item")
         .update({ barcodeUploadId: null } as any)
-        .eq("id", itemId)
-        .eq("barcodeUploadId", barcodeId);
-      if (error) {
+        .eq("id", itemId);
+
+      if (itemError) {
         toast.error("Error removing barcode image from item");
         return;
       }
+
+      // Then delete the barcodeUpload record
+      const { error: barcodeError } = await (carbon as any)
+        .from("barcodeUpload")
+        .delete()
+        .eq("id", barcodeId);
+
+      if (barcodeError) {
+        toast.error("Error deleting barcode record");
+        return;
+      }
+
       toast.success("Barcode image removed");
       revalidator.revalidate();
     },

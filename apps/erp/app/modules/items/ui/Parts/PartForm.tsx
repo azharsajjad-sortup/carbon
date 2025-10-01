@@ -30,6 +30,7 @@ import { LuCloudUpload, LuInfo } from "react-icons/lu";
 import type { z } from "zod";
 import { TrackingTypeIcon } from "~/components";
 import {
+  Boolean,
   CustomFormFields,
   DefaultMethodType,
   Hidden,
@@ -67,7 +68,9 @@ const PartForm = ({ initialValues, type = "card", onClose }: PartFormProps) => {
 
   const fetcher = useFetcher<PostgrestResponse<{ id: string }>>();
 
-  const [modelUploadId, setModelUploadId] = useState<string | null>(null);
+  const [modelUploadId, setModelUploadId] = useState<string | null>(
+    (initialValues as any)?.modelUploadId ?? null
+  );
   const [modelIsUploading, setModelIsUploading] = useState(false);
   const [modelFile, setModelFile] = useState<File | null>(null);
   const [barcodeUploadId, setBarcodeUploadId] = useState<string | null>(
@@ -86,28 +89,57 @@ const PartForm = ({ initialValues, type = "card", onClose }: PartFormProps) => {
       setModelIsUploading(true);
     });
 
-    const modelId = nanoid();
     const fileExtension = file.name.split(".").pop();
-    const fileName = `${companyId}/models/${modelId}.${fileExtension}`;
 
-    const [fileUpload, recordInsert] = await Promise.all([
-      carbon.storage.from("private").upload(fileName, file),
-      carbon.from("modelUpload").insert({
-        id: modelId,
-        modelPath: fileName,
-        size: file.size,
-        name: file.name,
-        companyId: companyId,
-        createdBy: "system",
-      }),
-    ]);
+    // If editing and has existing model, use existing ID and replace file
+    if (isEditing && initialValues.modelUploadId) {
+      const modelId = initialValues.modelUploadId;
+      const fileName = `${companyId}/models/${modelId}.${fileExtension}`;
 
-    if (fileUpload.error || recordInsert.error) {
-      toast.error(`Failed to upload model`);
+      const [fileUpload, recordOperation] = await Promise.all([
+        carbon.storage.from("private").upload(fileName, file),
+        carbon
+          .from("modelUpload")
+          .update({
+            modelPath: fileName,
+            size: file.size,
+            name: file.name,
+            updatedBy: "system",
+          })
+          .eq("id", modelId),
+      ]);
+
+      if (fileUpload.error || recordOperation.error) {
+        toast.error(`Failed to upload model`);
+      } else {
+        setModelUploadId(modelId);
+        setModelFile(file);
+        toast.success(`Uploaded model`);
+      }
     } else {
-      setModelUploadId(modelId);
-      setModelFile(file);
-      toast.success(`Uploaded model`);
+      // Create new model for new parts
+      const modelId = nanoid();
+      const fileName = `${companyId}/models/${modelId}.${fileExtension}`;
+
+      const [fileUpload, recordOperation] = await Promise.all([
+        carbon.storage.from("private").upload(fileName, file),
+        carbon.from("modelUpload").insert({
+          id: modelId,
+          modelPath: fileName,
+          size: file.size,
+          name: file.name,
+          companyId: companyId,
+          createdBy: "system",
+        }),
+      ]);
+
+      if (fileUpload.error || recordOperation.error) {
+        toast.error(`Failed to upload model`);
+      } else {
+        setModelUploadId(modelId);
+        setModelFile(file);
+        toast.success(`Uploaded model`);
+      }
     }
 
     setModelIsUploading(false);
@@ -117,39 +149,100 @@ const PartForm = ({ initialValues, type = "card", onClose }: PartFormProps) => {
     if (!carbon) return;
     flushSync(() => setBarcodeIsUploading(true));
 
-    const barcodeId = nanoid();
     const fileExtension = file.name.split(".").pop();
-    const fileName = `${companyId}/barcodes/${barcodeId}.${fileExtension}`;
 
-    const [fileUpload, recordInsert] = await Promise.all([
-      carbon.storage.from("private").upload(fileName, file),
-      carbon.from("barcodeUpload").insert({
-        id: barcodeId,
-        imagePath: fileName,
-        size: file.size,
-        name: file.name,
-        companyId: companyId,
-        createdBy: "system",
-      }),
-    ]);
-    if (fileUpload.error || recordInsert.error) {
-      toast.error("Failed to upload barcode image");
+    // If editing and has existing barcode, use existing ID and replace file
+    if (isEditing && initialValues.barcodeUploadId) {
+      const barcodeId = initialValues.barcodeUploadId;
+      const fileName = `${companyId}/barcodes/${barcodeId}.${fileExtension}`;
+
+      const [fileUpload, recordOperation] = await Promise.all([
+        carbon.storage.from("private").upload(fileName, file),
+        (carbon as any)
+          .from("barcodeUpload")
+          .update({
+            imagePath: fileName,
+            size: file.size,
+            name: file.name,
+            updatedBy: "system",
+          })
+          .eq("id", barcodeId),
+      ]);
+
+      if (fileUpload.error || recordOperation.error) {
+        toast.error("Failed to upload barcode image");
+      } else {
+        setBarcodeUploadId(barcodeId);
+        setBarcodeFile(file);
+        toast.success("Uploaded barcode image");
+      }
     } else {
-      setBarcodeUploadId(barcodeId);
-      setBarcodeFile(file);
-      toast.success("Uploaded barcode image");
+      // Create new barcode for new parts
+      const barcodeId = nanoid();
+      const fileName = `${companyId}/barcodes/${barcodeId}.${fileExtension}`;
+
+      const [fileUpload, recordOperation] = await Promise.all([
+        carbon.storage.from("private").upload(fileName, file),
+        (carbon as any).from("barcodeUpload").insert({
+          id: barcodeId,
+          imagePath: fileName,
+          size: file.size,
+          name: file.name,
+          companyId: companyId,
+          createdBy: "system",
+        }),
+      ]);
+
+      if (fileUpload.error || recordOperation.error) {
+        toast.error("Failed to upload barcode image");
+      } else {
+        setBarcodeUploadId(barcodeId);
+        setBarcodeFile(file);
+        toast.success("Uploaded barcode image");
+      }
     }
+
     setBarcodeIsUploading(false);
   };
 
-  const removeBarcode = () => {
+  const removeBarcode = async () => {
+    if (barcodeUploadId && carbon) {
+      // Delete the barcodeUpload record from database
+      const { error } = await (carbon as any)
+        .from("barcodeUpload")
+        .delete()
+        .eq("id", barcodeUploadId);
+
+      if (error) {
+        toast.error("Error removing barcode image");
+        console.error("Error deleting barcode record:", error);
+        return;
+      }
+    }
+
     setBarcodeUploadId(null);
     setBarcodeFile(null);
+    toast.success("Barcode image removed");
   };
 
-  const removeModel = () => {
+  const removeModel = async () => {
+    if (modelUploadId && carbon) {
+      // Delete the modelUpload record from database
+      const { error } = await (carbon as any)
+        .from("modelUpload")
+        .delete()
+        .eq("id", modelUploadId);
+
+      if (error) {
+        toast.error("Error removing model file");
+        console.error("Error deleting model record:", error);
+        return;
+      }
+    }
+
     setModelUploadId(null);
     setModelFile(null);
+    toast.success("Model file removed");
   };
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -218,6 +311,19 @@ const PartForm = ({ initialValues, type = "card", onClose }: PartFormProps) => {
   const { id, onIdChange, loading } = useNextItemId("Part");
   const permissions = usePermissions();
   const isEditing = !!initialValues.id;
+
+  // Load existing files when editing
+  useEffect(() => {
+    if (isEditing && initialValues) {
+      // Set existing file names for display
+      if (initialValues.modelUploadId && initialValues.modelFileName) {
+        setModelFile({ name: initialValues.modelFileName } as File);
+      }
+      if (initialValues.barcodeUploadId && initialValues.barcodeFileName) {
+        setBarcodeFile({ name: initialValues.barcodeFileName } as File);
+      }
+    }
+  }, [isEditing, initialValues]);
 
   const itemTrackingTypeOptions = itemTrackingTypes.map((itemTrackingType) => ({
     label: (
@@ -308,7 +414,7 @@ const PartForm = ({ initialValues, type = "card", onClose }: PartFormProps) => {
                   <Input
                     name="revision"
                     label="Revision"
-                    isReadOnly={isEditing}
+                    // isReadOnly={isEditing}
                   />
                   <TooltipProvider>
                     <Tooltip>
@@ -370,6 +476,8 @@ const PartForm = ({ initialValues, type = "card", onClose }: PartFormProps) => {
                   name="unitOfMeasureCode"
                   label="Unit of Measure"
                 />
+
+                <Boolean name="active" label="Active" />
 
                 {!isEditing && replenishmentSystem !== "Make" && (
                   <Number

@@ -659,6 +659,7 @@ export const path = {
     documentRestore: (id: string) =>
       generatePath(`${x}/documents/${id}/restore`),
     documentsTrash: `${x}/documents/search?q=trash`,
+    editPart: (id: string) => generatePath(`${x}/part/${id}/edit`),
     employeeAbility: (abilityId: string, id: string) =>
       generatePath(`${x}/resources/ability/${abilityId}/employee/${id}`),
     employeeAccount: (id: string) => generatePath(`${x}/users/employees/${id}`),
