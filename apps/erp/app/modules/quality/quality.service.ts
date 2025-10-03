@@ -1,10 +1,12 @@
 import { fetchAllFromTable, type Database, type Json } from "@carbon/database";
+import type { JSONContent } from "@carbon/react";
 import { parseDate } from "@internationalized/date";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { z } from "zod";
 import type { GenericQueryFilters } from "~/utils/query";
 import { setGenericQueryFilters } from "~/utils/query";
 import { sanitize } from "~/utils/supabase";
+
 import type { inspectionStatus } from "../shared";
 import type {
   gaugeCalibrationRecordValidator,
@@ -17,6 +19,8 @@ import type {
   issueWorkflowValidator,
   nonConformanceReviewerValidator,
   nonConformanceStatus,
+  qualityDocumentStepValidator,
+  qualityDocumentValidator,
 } from "./quality.models";
 
 export async function activateGauge(
@@ -154,6 +158,35 @@ export async function deleteIssueWorkflow(
     .from("nonConformanceWorkflow")
     .update({ active: false })
     .eq("id", nonConformanceWorkflowId);
+}
+
+export async function deleteRequiredAction(
+  client: SupabaseClient<Database>,
+  requiredActionId: string
+) {
+  return client
+    .from("nonConformanceRequiredAction")
+    .delete()
+    .eq("id", requiredActionId);
+}
+
+export async function deleteQualityDocument(
+  client: SupabaseClient<Database>,
+  qualityDocumentId: string
+) {
+  return client.from("qualityDocument").delete().eq("id", qualityDocumentId);
+}
+
+export async function deleteQualityDocumentStep(
+  client: SupabaseClient<Database>,
+  qualityDocumentStepId: string,
+  companyId: string
+) {
+  return client
+    .from("qualityDocumentStep")
+    .delete()
+    .eq("id", qualityDocumentStepId)
+    .eq("companyId", companyId);
 }
 
 export async function getGauge(
@@ -320,31 +353,6 @@ export async function getIssues(
   if (args) {
     query = setGenericQueryFilters(query, args, [
       { column: "nonConformanceId", ascending: false },
-    ]);
-  }
-
-  return query;
-}
-
-export async function getQualityActions(
-  client: SupabaseClient<Database>,
-  companyId: string,
-  args?: GenericQueryFilters & { search: string | null }
-) {
-  let query = client
-    .from("qualityActions")
-    .select("*", { count: "exact" })
-    .eq("companyId", companyId);
-
-  if (args?.search) {
-    query = query.or(
-      `readableNonConformanceId.ilike.%${args.search}%,nonConformanceName.ilike.%${args.search}%,name.ilike.%${args.search}%,description.ilike.%${args.search}%`
-    );
-  }
-
-  if (args) {
-    query = setGenericQueryFilters(query, args, [
-      { column: "createdAt", ascending: false },
     ]);
   }
 
@@ -660,6 +668,40 @@ export async function getIssueTasks(
   ]);
 }
 
+export async function getIssueType(
+  client: SupabaseClient<Database>,
+  nonConformanceTypeId: string
+) {
+  return client
+    .from("nonConformanceType")
+    .select("*")
+    .eq("id", nonConformanceTypeId)
+    .single();
+}
+
+export async function getIssueTypes(
+  client: SupabaseClient<Database>,
+  companyId: string,
+  args?: GenericQueryFilters & { search: string | null }
+) {
+  let query = client
+    .from("nonConformanceType")
+    .select("*", { count: "exact" })
+    .eq("companyId", companyId);
+
+  if (args?.search) {
+    query = query.ilike("name", `%${args.search}%`);
+  }
+
+  if (args) {
+    query = setGenericQueryFilters(query, args, [
+      { column: "name", ascending: true },
+    ]);
+  }
+
+  return query;
+}
+
 export async function getIssueWorkflows(
   client: SupabaseClient<Database>,
   companyId: string,
@@ -756,6 +798,113 @@ export async function getInvestigationTypesList(
     .order("name");
 }
 
+export async function getQualityActions(
+  client: SupabaseClient<Database>,
+  companyId: string,
+  args?: GenericQueryFilters & { search: string | null }
+) {
+  let query = client
+    .from("qualityActions")
+    .select("*", { count: "exact" })
+    .eq("companyId", companyId);
+
+  if (args?.search) {
+    query = query.or(
+      `readableNonConformanceId.ilike.%${args.search}%,nonConformanceName.ilike.%${args.search}%,name.ilike.%${args.search}%,description.ilike.%${args.search}%`
+    );
+  }
+
+  if (args) {
+    query = setGenericQueryFilters(query, args, [
+      { column: "createdAt", ascending: false },
+    ]);
+  }
+
+  return query;
+}
+
+export async function getQualityDocument(
+  client: SupabaseClient<Database>,
+  id: string
+) {
+  return client
+    .from("qualityDocument")
+    .select("*, qualityDocumentStep(*)")
+    .eq("id", id)
+    .single();
+}
+
+export async function getQualityDocumentSteps(
+  client: SupabaseClient<Database>,
+  qualityDocumentId: string
+) {
+  return client
+    .from("qualityDocumentStep")
+    .select("*")
+    .eq("qualityDocumentId", qualityDocumentId);
+}
+
+export async function getQualityDocumentVersions(
+  client: SupabaseClient<Database>,
+  qualityDocument: { name: string; version: number },
+  companyId: string
+) {
+  return client
+    .from("qualityDocument")
+    .select("*")
+    .eq("name", qualityDocument.name)
+    .eq("companyId", companyId)
+    .neq("version", qualityDocument.version)
+    .order("version", { ascending: false });
+}
+
+export async function getQualityDocuments(
+  client: SupabaseClient<Database>,
+  companyId: string,
+  args?: { search: string | null } & GenericQueryFilters
+) {
+  let query = client
+    .from("qualityDocuments")
+    .select("*", {
+      count: "exact",
+    })
+    .eq("companyId", companyId);
+
+  if (args?.search) {
+    query = query.ilike("name", `%${args.search}%`);
+  }
+
+  if (args) {
+    query = setGenericQueryFilters(query, args, [
+      { column: "name", ascending: true },
+    ]);
+  }
+
+  return query;
+}
+
+export async function getQualityDocumentsList(
+  client: SupabaseClient<Database>,
+  companyId: string
+) {
+  return fetchAllFromTable<{
+    id: string;
+    name: string;
+    version: number;
+    processId: string;
+    status: string;
+  }>(
+    client,
+    "qualityDocument",
+    "id, name, version, processId, status",
+    (query) =>
+      query
+        .eq("companyId", companyId)
+        .order("name", { ascending: true })
+        .order("version", { ascending: false })
+  );
+}
+
 export async function getRequiredActionsList(
   client: SupabaseClient<Database>,
   companyId: string
@@ -800,50 +949,6 @@ export async function getRequiredAction(
     .select("*")
     .eq("id", requiredActionId)
     .single();
-}
-
-export async function deleteRequiredAction(
-  client: SupabaseClient<Database>,
-  requiredActionId: string
-) {
-  return client
-    .from("nonConformanceRequiredAction")
-    .delete()
-    .eq("id", requiredActionId);
-}
-
-export async function getIssueType(
-  client: SupabaseClient<Database>,
-  nonConformanceTypeId: string
-) {
-  return client
-    .from("nonConformanceType")
-    .select("*")
-    .eq("id", nonConformanceTypeId)
-    .single();
-}
-
-export async function getIssueTypes(
-  client: SupabaseClient<Database>,
-  companyId: string,
-  args?: GenericQueryFilters & { search: string | null }
-) {
-  let query = client
-    .from("nonConformanceType")
-    .select("*", { count: "exact" })
-    .eq("companyId", companyId);
-
-  if (args?.search) {
-    query = query.ilike("name", `%${args.search}%`);
-  }
-
-  if (args) {
-    query = setGenericQueryFilters(query, args, [
-      { column: "name", ascending: true },
-    ]);
-  }
-
-  return query;
 }
 
 export async function insertIssueReviewer(
@@ -897,6 +1002,23 @@ export async function updateIssueTaskStatus(
     .eq("id", id)
     .select("nonConformanceId")
     .single();
+}
+
+export async function updateQualityDocumentStepOrder(
+  client: SupabaseClient<Database>,
+  updates: {
+    id: string;
+    sortOrder: number;
+    updatedBy: string;
+  }[]
+) {
+  const updatePromises = updates.map(({ id, sortOrder, updatedBy }) =>
+    client
+      .from("qualityDocumentStep")
+      .update({ sortOrder, updatedBy })
+      .eq("id", id)
+  );
+  return Promise.all(updatePromises);
 }
 
 export async function upsertGauge(
@@ -1166,4 +1288,106 @@ export async function upsertRequiredAction(
       .update(sanitize(requiredAction))
       .eq("id", requiredAction.id);
   }
+}
+
+export async function upsertQualityDocument(
+  client: SupabaseClient<Database>,
+  qualityDocument:
+    | (Omit<z.infer<typeof qualityDocumentValidator>, "id"> & {
+        companyId: string;
+        createdBy: string;
+      })
+    | (Omit<z.infer<typeof qualityDocumentValidator>, "id"> & {
+        id: string;
+        updatedBy: string;
+      })
+) {
+  const { copyFromId, ...rest } = qualityDocument;
+  if ("id" in rest) {
+    return client
+      .from("qualityDocument")
+      .update(sanitize(rest))
+      .eq("id", rest.id)
+      .select("id")
+      .single();
+  }
+
+  const insert = await client
+    .from("qualityDocument")
+    .insert([rest])
+    .select("id")
+    .single();
+  if (insert.error) {
+    return insert;
+  }
+  if (copyFromId) {
+    const qualityDocument = await client
+      .from("qualityDocument")
+      .select("*, qualityDocumentStep(*)")
+      .eq("id", copyFromId)
+      .single();
+
+    if (qualityDocument.error) {
+      return qualityDocument;
+    }
+
+    const steps = qualityDocument.data.qualityDocumentStep ?? [];
+    const workInstruction = (qualityDocument.data.content ?? {}) as JSONContent;
+
+    const [updateWorkInstructions, insertSteps] = await Promise.all([
+      client
+        .from("qualityDocument")
+        .update({
+          content: workInstruction,
+        })
+        .eq("id", insert.data.id),
+      steps.length > 0
+        ? client.from("qualityDocumentStep").insert(
+            steps.map((step) => {
+              const { id, qualityDocumentId, ...rest } = step;
+              return {
+                ...rest,
+                qualityDocumentId: insert.data.id,
+                companyId: qualityDocument.data.companyId!,
+              };
+            })
+          )
+        : Promise.resolve({ data: null, error: null }),
+    ]);
+
+    if (updateWorkInstructions.error) {
+      return updateWorkInstructions;
+    }
+    if (insertSteps.error) {
+      return insertSteps;
+    }
+  }
+  return insert;
+}
+
+export async function upsertQualityDocumentStep(
+  client: SupabaseClient<Database>,
+  qualityDocumentStep:
+    | (Omit<z.infer<typeof qualityDocumentStepValidator>, "id"> & {
+        companyId: string;
+        createdBy: string;
+      })
+    | (Omit<z.infer<typeof qualityDocumentStepValidator>, "id"> & {
+        id: string;
+        updatedBy: string;
+      })
+) {
+  if ("id" in qualityDocumentStep) {
+    return client
+      .from("qualityDocumentStep")
+      .update(sanitize(qualityDocumentStep))
+      .eq("id", qualityDocumentStep.id)
+      .select("id")
+      .single();
+  }
+  return client
+    .from("qualityDocumentStep")
+    .insert([qualityDocumentStep])
+    .select("id")
+    .single();
 }

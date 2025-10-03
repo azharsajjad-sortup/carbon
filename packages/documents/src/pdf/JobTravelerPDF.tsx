@@ -281,8 +281,9 @@ const JobTravelerPDF = ({
           </View>
 
           {jobOperations
-            .filter((operation) => operation.operationType === "Inside")
+            .sort((a, b) => a.order - b.order)
             .map((operation, index) => {
+              const isInside = operation.operationType === "Inside";
               const setupQrCode =
                 operation.setupTime > 0
                   ? generateQRCode(
@@ -334,7 +335,7 @@ const JobTravelerPDF = ({
                       </Text>
                     </View>
                     <View style={tw("w-2/3 flex flex-row justify-end gap-2")}>
-                      {setupQrCode && (
+                      {isInside && setupQrCode && (
                         <View style={tw("flex flex-col items-center w-1/4")}>
                           <>
                             <Image src={setupQrCode} style={tw("w-16 h-16")} />
@@ -343,7 +344,7 @@ const JobTravelerPDF = ({
                         </View>
                       )}
 
-                      {laborQrCode && (
+                      {isInside && laborQrCode && (
                         <View style={tw("flex flex-col items-center w-1/4")}>
                           <>
                             <Image src={laborQrCode} style={tw("w-16 h-16")} />
@@ -351,7 +352,7 @@ const JobTravelerPDF = ({
                           </>
                         </View>
                       )}
-                      {machiningQrCode && (
+                      {isInside && machiningQrCode && (
                         <View style={tw("flex flex-col items-center w-1/4")}>
                           <>
                             <Image

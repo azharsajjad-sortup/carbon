@@ -105,6 +105,7 @@ import type {
   JobMaterial,
   JobOperationAttribute,
   JobOperationParameter,
+  Kanban,
   OperationWithDetails,
   ProductionEvent,
   ProductionQuantity,
@@ -114,6 +115,7 @@ import type {
 } from "~/services/types";
 import { path } from "~/utils/path";
 
+import type { Result } from "@carbon/auth";
 import { useCarbon } from "@carbon/auth";
 import {
   Combobox,
@@ -127,7 +129,7 @@ import {
   TextArea,
   ValidatedForm,
 } from "@carbon/form";
-import { useMode } from "@carbon/remix";
+import { useKeyboardWedge, useMode } from "@carbon/remix";
 import type { TrackedEntityAttributes } from "@carbon/utils";
 import {
   convertDateStringToIsoString,
@@ -202,6 +204,7 @@ import ScrapReason from "./ScrapReason";
 type JobOperationProps = {
   events: ProductionEvent[];
   files: Promise<StorageItem[]>;
+  kanban: Kanban | null;
   materials: Promise<{
     materials: JobMaterial[];
     trackedInputs: TrackedInput[];
@@ -222,6 +225,7 @@ export const JobOperation = ({
   events,
   files,
   job,
+  kanban,
   materials,
   method,
   operation: originalOperation,
@@ -269,7 +273,6 @@ export const JobOperation = ({
     completeModal,
     eventType,
     finishModal,
-    hasActiveEvents,
     isOverdue,
     issueModal,
     laborProductionEvent,
@@ -371,6 +374,22 @@ export const JobOperation = ({
     }
   };
 
+  const completeFetcher = useFetcher<Result>();
+  useKeyboardWedge({
+    test: (input) => {
+      if (kanban?.completedBarcodeOverride) {
+        return input === kanban.completedBarcodeOverride;
+      } else if (kanban?.id) {
+        return input === path.to.kanbanComplete(kanban.id);
+      }
+      return false;
+    },
+    callback: () => {
+      completeFetcher.load(path.to.endOperation(operation.id));
+    },
+    active: !!kanban?.id,
+  });
+
   return (
     <>
       <Tabs
@@ -390,10 +409,10 @@ export const JobOperation = ({
               <Button
                 variant="ghost"
                 leftIcon={<LuChevronLeft />}
-                onClick={() => navigate(path.to.assigned)}
+                onClick={() => navigate(path.to.operations)}
                 className="pl-2"
               >
-                Assignments
+                Schedule
               </Button>
             </div>
             <div className="hidden md:flex flex-shrink-0 items-center justify-end gap-2">
@@ -427,7 +446,20 @@ export const JobOperation = ({
         </header>
 
         <div className="hidden md:flex items-center justify-between px-4 lg:pl-6 py-2 h-[var(--header-height)] bg-background gap-4 max-w-[100vw] overflow-x-hidden scrollbar-thin scrollbar-track-transparent scrollbar-thumb-accent">
-          <Heading size="h4">{operation.jobReadableId}</Heading>
+          <HStack>
+            <Heading size="h4">{operation.jobReadableId}</Heading>
+            <a
+              href={path.to.file.jobTraveler(operation.jobMakeMethodId)}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <IconButton
+                aria-label="Job Traveler"
+                variant="secondary"
+                icon={<LuQrCode />}
+              />
+            </a>
+          </HStack>
 
           <HStack className="justify-end items-center gap-2">
             {job.customer?.name && (
@@ -512,13 +544,17 @@ export const JobOperation = ({
                 </div>
               </HStack>
               <div className="flex flex-col flex-shrink items-end">
-                {parentIsSerial ? (
-                  <Heading size="h2">
-                    {serialIndex + 1} of {operation.operationQuantity}
-                  </Heading>
-                ) : (
-                  <Heading size="h2">{operation.operationQuantity}</Heading>
-                )}
+                <Heading size="h2">
+                  {formatDurationMilliseconds(
+                    ((progress.setup ?? 0) +
+                      (progress.labor ?? 0) +
+                      (progress.machine ?? 0)) /
+                      Math.max(operation.quantityComplete, 1),
+                    {
+                      style: "short",
+                    }
+                  )}
+                </Heading>
                 <p className="text-muted-foreground line-clamp-1">
                   {operation.itemUnitOfMeasure}
                 </p>
@@ -1828,7 +1864,6 @@ export const JobOperation = ({
                 setupProductionEvent={setupProductionEvent}
                 laborProductionEvent={laborProductionEvent}
                 machineProductionEvent={machineProductionEvent}
-                hasActiveEvents={hasActiveEvents}
                 isTrackedActivity={
                   method?.requiresSerialTracking === true ||
                   method?.requiresBatchTracking === true
@@ -1878,8 +1913,11 @@ export const JobOperation = ({
                   onClick={completeModal.onOpen}
                 />
                 <IconButtonWithTooltip
-                  icon={
-                    <FaCheck className="text-accent-foreground group-hover:text-accent-foreground/80" />
+                  icon={<FaCheck />}
+                  variant={
+                    operation.quantityComplete === operation.operationQuantity
+                      ? "success"
+                      : "default"
                   }
                   tooltip="Close Out"
                   onClick={finishModal.onOpen}
@@ -2488,7 +2526,7 @@ function useOperation({
               }));
             } else if (payload.eventType === "DELETE") {
               toast.error("This operation has been deleted");
-              window.location.href = path.to.assigned;
+              window.location.href = path.to.operations;
             }
           }
         )
@@ -2795,10 +2833,12 @@ function IconButtonWithTooltip({
   icon,
   tooltip,
   disabled,
+  variant,
   ...props
 }: ComponentProps<"button"> & {
   icon: ReactNode;
   tooltip: string;
+  variant?: "default" | "success" | "destructive";
   disabled?: boolean;
 }) {
   return (
@@ -2806,7 +2846,13 @@ function IconButtonWithTooltip({
       {...props}
       tooltip={tooltip}
       disabled={disabled}
-      className="size-16 text-xl md:text-lg md:size-[8dvh] flex flex-row items-center gap-2 justify-center bg-accent rounded-full shadow-lg hover:cursor-pointer hover:shadow-xl hover:accent hover:scale-105 transition-all disabled:cursor-not-allowed disabled:bg-muted disabled:opacity-30"
+      className={cn(
+        "size-16 text-xl md:text-lg md:size-[8dvh] flex flex-row items-center gap-2 justify-center bg-accent rounded-full shadow-lg hover:cursor-pointer hover:shadow-xl hover:accent hover:scale-105 transition-all disabled:cursor-not-allowed disabled:bg-muted disabled:opacity-30 text-accent-foreground group-hover:text-accent-foreground/80",
+        variant === "success" &&
+          "bg-emerald-500 !text-white hover:bg-emerald-600 hover:text-white",
+        variant === "destructive" &&
+          "bg-red-500 !text-white hover:bg-red-600 hover:text-white"
+      )}
     >
       {icon}
     </ButtonWithTooltip>
@@ -2913,7 +2959,6 @@ function StartStopButton({
   setupProductionEvent,
   laborProductionEvent,
   machineProductionEvent,
-  hasActiveEvents,
   isTrackedActivity,
   trackedEntityId,
   ...props
@@ -2924,7 +2969,6 @@ function StartStopButton({
   setupProductionEvent: ProductionEvent | undefined;
   laborProductionEvent: ProductionEvent | undefined;
   machineProductionEvent: ProductionEvent | undefined;
-  hasActiveEvents: boolean;
   isTrackedActivity: boolean;
   trackedEntityId: string | undefined;
 }) {
@@ -2998,10 +3042,7 @@ function StartStopButton({
       )}
       <Hidden name="jobOperationId" value={operation.id} />
       <Hidden name="timezone" />
-      <Hidden
-        name="hasActiveEvents"
-        value={hasActiveEvents ? "true" : "false"}
-      />
+
       <Hidden name="action" value={isActive ? "End" : "Start"} />
       <Hidden name="type" value={eventType} />
       <Hidden name="workCenterId" value={operation.workCenterId ?? undefined} />

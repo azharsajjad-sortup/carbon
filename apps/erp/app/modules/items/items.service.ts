@@ -121,7 +121,7 @@ export async function createRevision(
       defaultMethodType: item.defaultMethodType,
       itemTrackingType: item.itemTrackingType,
       unitOfMeasureCode: item.unitOfMeasureCode,
-      active: item.active,
+      active: true,
       modelUploadId: item.modelUploadId,
       companyId: item.companyId,
       createdBy: createdBy,
@@ -683,21 +683,27 @@ export async function getMaterialUsedIn(
       .from("jobMaterial")
       .select("id, methodType, ...job(documentReadableId:jobId, documentId:id)")
       .eq("itemId", itemId)
-      .eq("companyId", companyId),
+      .eq("companyId", companyId)
+      .limit(100)
+      .order("createdAt", { ascending: false }),
     client
       .from("methodMaterial")
       .select(
         "id, methodType, ...makeMethod!makeMethodId(documentId:id, version, ...item(documentReadableId:readableIdWithRevision, documentParentId:id, itemType:type))"
       )
       .eq("itemId", itemId)
-      .eq("companyId", companyId),
+      .eq("companyId", companyId)
+      .limit(100)
+      .order("createdAt", { ascending: false }),
     client
       .from("purchaseOrderLine")
       .select(
         "id, ...purchaseOrder(documentReadableId:purchaseOrderId, documentId:id)"
       )
       .eq("itemId", itemId)
-      .eq("companyId", companyId),
+      .eq("companyId", companyId)
+      .limit(100)
+      .order("createdAt", { ascending: false }),
     client
       .from("receiptLine")
       .select("id, ...receipt(documentReadableId:receiptId, documentId:id)")
@@ -709,26 +715,33 @@ export async function getMaterialUsedIn(
         "id, methodType, documentParentId:quoteId, documentId:quoteLineId, ...quoteLine(...item(documentReadableId:readableIdWithRevision))"
       )
       .eq("itemId", itemId)
-      .eq("companyId", companyId),
+      .eq("companyId", companyId)
+      .limit(100)
+      .order("createdAt", { ascending: false }),
     client
       .from("salesOrderLine")
       .select(
         "id, methodType, ...salesOrder(documentReadableId:salesOrderId, documentId:id)"
       )
       .eq("itemId", itemId)
-      .eq("companyId", companyId),
+      .eq("companyId", companyId)
+      .limit(100)
+      .order("createdAt", { ascending: false }),
     client
       .from("shipmentLine")
       .select("id, ...shipment(documentReadableId:shipmentId, documentId:id)")
       .eq("itemId", itemId)
-      .eq("companyId", companyId),
+      .eq("companyId", companyId)
+      .limit(100)
+      .order("createdAt", { ascending: false }),
     client
       .from("supplierQuoteLine")
       .select(
         "id, ...supplierQuote(documentReadableId:supplierQuoteId, documentId:id)"
       )
       .eq("itemId", itemId)
-      .eq("companyId", companyId),
+      .eq("companyId", companyId)
+      .limit(100),
   ]);
 
   return {
@@ -1366,64 +1379,83 @@ export async function getPartUsedIn(
       .from("jobMaterial")
       .select("id, methodType, ...job(documentReadableId:jobId, documentId:id)")
       .eq("itemId", itemId)
-      .eq("companyId", companyId),
+      .eq("companyId", companyId)
+      .limit(100)
+      .order("createdAt", { ascending: false }),
     client
       .from("job")
       .select("id, documentReadableId:jobId")
       .eq("itemId", itemId)
-      .eq("companyId", companyId),
+      .eq("companyId", companyId)
+      .limit(100)
+      .order("createdAt", { ascending: false }),
     client
       .from("methodMaterial")
       .select(
         "id, methodType, ...makeMethod!makeMethodId(documentId:id, version, ...item(documentReadableId:readableIdWithRevision, documentParentId:id, itemType:type))"
       )
       .eq("itemId", itemId)
-      .eq("companyId", companyId),
+      .eq("companyId", companyId)
+      .limit(100)
+      .order("createdAt", { ascending: false }),
     client
       .from("purchaseOrderLine")
       .select(
         "id, ...purchaseOrder(documentReadableId:purchaseOrderId, documentId:id)"
       )
       .eq("itemId", itemId)
-      .eq("companyId", companyId),
+      .eq("companyId", companyId)
+      .limit(100)
+      .order("createdAt", { ascending: false }),
     client
       .from("receiptLine")
       .select("id, ...receipt(documentReadableId:receiptId, documentId:id)")
       .eq("itemId", itemId)
-      .eq("companyId", companyId),
+      .eq("companyId", companyId)
+      .limit(100)
+      .order("createdAt", { ascending: false }),
     client
       .from("quoteLine")
       .select(
         "id, methodType, ...quote(documentReadableId:quoteId, documentId:id)"
       )
       .eq("itemId", itemId)
-      .eq("companyId", companyId),
+      .eq("companyId", companyId)
+      .limit(100),
+
     client
       .from("quoteMaterial")
       .select(
         "id, methodType, documentParentId:quoteId, documentId:quoteLineId, ...quoteLine(...item(documentReadableId:readableIdWithRevision))"
       )
       .eq("itemId", itemId)
-      .eq("companyId", companyId),
+      .eq("companyId", companyId)
+      .limit(100)
+      .order("createdAt", { ascending: false }),
     client
       .from("salesOrderLine")
       .select(
         "id, methodType, ...salesOrder(documentReadableId:salesOrderId, documentId:id)"
       )
       .eq("itemId", itemId)
-      .eq("companyId", companyId),
+      .eq("companyId", companyId)
+      .limit(100)
+      .order("createdAt", { ascending: false }),
     client
       .from("shipmentLine")
       .select("id, ...shipment(documentReadableId:shipmentId, documentId:id)")
       .eq("itemId", itemId)
-      .eq("companyId", companyId),
+      .eq("companyId", companyId)
+      .limit(100)
+      .order("createdAt", { ascending: false }),
     client
       .from("supplierQuoteLine")
       .select(
         "id, ...supplierQuote(documentReadableId:supplierQuoteId, documentId:id)"
       )
       .eq("itemId", itemId)
-      .eq("companyId", companyId),
+      .eq("companyId", companyId)
+      .limit(100),
   ]);
 
   return {
@@ -1923,7 +1955,7 @@ export async function upsertConsumable(
         defaultMethodType: consumable.defaultMethodType,
         itemTrackingType: consumable.itemTrackingType,
         unitOfMeasureCode: consumable.unitOfMeasureCode,
-        active: consumable.active,
+        active: true,
         companyId: consumable.companyId,
         createdBy: consumable.createdBy,
       })
@@ -1968,7 +2000,7 @@ export async function upsertConsumable(
     defaultMethodType: consumable.defaultMethodType,
     itemTrackingType: consumable.itemTrackingType,
     unitOfMeasureCode: consumable.unitOfMeasureCode,
-    active: consumable.active,
+    active: true,
   };
 
   const consumableUpdate = {
@@ -2021,7 +2053,7 @@ export async function upsertPart(
         defaultMethodType: part.defaultMethodType,
         itemTrackingType: part.itemTrackingType,
         unitOfMeasureCode: part.unitOfMeasureCode,
-        active: part.active,
+        active: true,
         modelUploadId: part.modelUploadId,
         companyId: part.companyId,
         createdBy: part.createdBy,
@@ -2076,7 +2108,7 @@ export async function upsertPart(
     defaultMethodType: part.defaultMethodType,
     itemTrackingType: part.itemTrackingType,
     unitOfMeasureCode: part.unitOfMeasureCode,
-    active: part.active,
+    active: true,
   };
 
   const partUpdate = {
@@ -2549,7 +2581,7 @@ export async function upsertMaterial(
               defaultMethodType: material.defaultMethodType,
               itemTrackingType: material.itemTrackingType,
               unitOfMeasureCode: material.unitOfMeasureCode,
-              active: material.active,
+              active: true,
               revision: size,
               companyId: material.companyId,
               createdBy: material.createdBy,
@@ -2584,7 +2616,7 @@ export async function upsertMaterial(
           defaultMethodType: material.defaultMethodType,
           itemTrackingType: material.itemTrackingType,
           unitOfMeasureCode: material.unitOfMeasureCode,
-          active: material.active,
+          active: true,
           companyId: material.companyId,
           createdBy: material.createdBy,
         })
@@ -2636,7 +2668,7 @@ export async function upsertMaterial(
     itemTrackingType: material.itemTrackingType,
     unitOfMeasureCode: material.unitOfMeasureCode,
     unitCost: material.unitCost,
-    active: material.active,
+    active: true,
   };
 
   const materialUpdate = {
@@ -2924,7 +2956,7 @@ export async function upsertService(
         defaultMethodType: service.serviceType === "External" ? "Buy" : "Make",
         itemTrackingType: service.itemTrackingType,
         unitOfMeasureCode: "EA",
-        active: service.active,
+        active: true,
         companyId: service.companyId,
         createdBy: service.createdBy,
       })
@@ -2974,7 +3006,7 @@ export async function upsertService(
       service.serviceType === "External" ? "Buy" : ("Make" as "Buy"),
     itemTrackingType: service.itemTrackingType,
     unitOfMeasureCode: null,
-    active: service.active,
+    active: true,
   };
 
   const serviceUpdate = {
@@ -3057,7 +3089,7 @@ export async function upsertTool(
         defaultMethodType: tool.defaultMethodType,
         itemTrackingType: tool.itemTrackingType,
         unitOfMeasureCode: tool.unitOfMeasureCode,
-        active: tool.active,
+        active: true,
         modelUploadId: tool.modelUploadId,
         companyId: tool.companyId,
         createdBy: tool.createdBy,
@@ -3103,7 +3135,7 @@ export async function upsertTool(
     defaultMethodType: tool.defaultMethodType,
     itemTrackingType: tool.itemTrackingType,
     unitOfMeasureCode: tool.unitOfMeasureCode,
-    active: tool.active,
+    active: true,
   };
 
   const toolUpdate = {

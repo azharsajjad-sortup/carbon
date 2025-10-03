@@ -66,6 +66,8 @@ export default function NewKanbanRoute() {
     locationId,
     conversionFactor: 1,
     autoRelease: false,
+    autoStartJob: false,
+    completedBarcodeOverride: "",
   };
 
   return (

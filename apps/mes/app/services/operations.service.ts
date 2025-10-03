@@ -32,19 +32,6 @@ export async function finishJobOperation(
     userId: string;
   }
 ) {
-  const closeProductionEvents = await client
-    .from("productionEvent")
-    .update({
-      endTime: new Date().toISOString(),
-      updatedBy: args.userId,
-    })
-    .eq("jobOperationId", args.jobOperationId)
-    .is("endTime", null);
-
-  if (closeProductionEvents.error) {
-    return closeProductionEvents;
-  }
-
   return client
     .from("jobOperation")
     .update({
@@ -366,6 +353,14 @@ export async function getJobParametersByOperationId(
     .from("jobOperationParameter")
     .select("*")
     .eq("operationId", operationId);
+}
+
+export async function getKanbanByJobId(
+  client: SupabaseClient<Database>,
+  jobId: string | null
+) {
+  if (!jobId) return { data: null, error: null };
+  return client.from("kanban").select("*").eq("jobId", jobId).maybeSingle();
 }
 
 export async function getLocationsByCompany(

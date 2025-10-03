@@ -2243,6 +2243,7 @@ export type Database = {
           digitalQuoteNotificationGroup: string[]
           id: string
           inventoryJobCompletedNotificationGroup: string[]
+          kanbanOutput: Database["public"]["Enums"]["kanbanOutput"]
           materialGeneratedIds: boolean
           productLabelSize: string | null
           rfqReadyNotificationGroup: string[]
@@ -2256,6 +2257,7 @@ export type Database = {
           digitalQuoteNotificationGroup?: string[]
           id: string
           inventoryJobCompletedNotificationGroup?: string[]
+          kanbanOutput?: Database["public"]["Enums"]["kanbanOutput"]
           materialGeneratedIds?: boolean
           productLabelSize?: string | null
           rfqReadyNotificationGroup?: string[]
@@ -2269,6 +2271,7 @@ export type Database = {
           digitalQuoteNotificationGroup?: string[]
           id?: string
           inventoryJobCompletedNotificationGroup?: string[]
+          kanbanOutput?: Database["public"]["Enums"]["kanbanOutput"]
           materialGeneratedIds?: boolean
           productLabelSize?: string | null
           rfqReadyNotificationGroup?: string[]
@@ -9248,6 +9251,7 @@ export type Database = {
           salesOrderLineId: string | null
           scrapQuantity: number
           secondsToComplete: number | null
+          shelfId: string | null
           startDate: string | null
           status: Database["public"]["Enums"]["jobStatus"]
           tags: string[] | null
@@ -9286,6 +9290,7 @@ export type Database = {
           salesOrderLineId?: string | null
           scrapQuantity?: number
           secondsToComplete?: number | null
+          shelfId?: string | null
           startDate?: string | null
           status?: Database["public"]["Enums"]["jobStatus"]
           tags?: string[] | null
@@ -9324,6 +9329,7 @@ export type Database = {
           salesOrderLineId?: string | null
           scrapQuantity?: number
           secondsToComplete?: number | null
+          shelfId?: string | null
           startDate?: string | null
           status?: Database["public"]["Enums"]["jobStatus"]
           tags?: string[] | null
@@ -9554,6 +9560,13 @@ export type Database = {
             columns: ["salesOrderLineId"]
             isOneToOne: false
             referencedRelation: "salesOrderLines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_shelfId_fkey"
+            columns: ["shelfId"]
+            isOneToOne: false
+            referencedRelation: "shelf"
             referencedColumns: ["id"]
           },
           {
@@ -11650,12 +11663,15 @@ export type Database = {
       kanban: {
         Row: {
           autoRelease: boolean
+          autoStartJob: boolean
           companyId: string
+          completedBarcodeOverride: string | null
           conversionFactor: number
           createdAt: string
           createdBy: string
           id: string
           itemId: string
+          jobId: string | null
           locationId: string
           purchaseUnitOfMeasureCode: string | null
           quantity: number
@@ -11667,12 +11683,15 @@ export type Database = {
         }
         Insert: {
           autoRelease?: boolean
+          autoStartJob?: boolean
           companyId: string
+          completedBarcodeOverride?: string | null
           conversionFactor?: number
           createdAt?: string
           createdBy: string
           id?: string
           itemId: string
+          jobId?: string | null
           locationId: string
           purchaseUnitOfMeasureCode?: string | null
           quantity: number
@@ -11684,12 +11703,15 @@ export type Database = {
         }
         Update: {
           autoRelease?: boolean
+          autoStartJob?: boolean
           companyId?: string
+          completedBarcodeOverride?: string | null
           conversionFactor?: number
           createdAt?: string
           createdBy?: string
           id?: string
           itemId?: string
+          jobId?: string | null
           locationId?: string
           purchaseUnitOfMeasureCode?: string | null
           quantity?: number
@@ -11796,6 +11818,27 @@ export type Database = {
             columns: ["itemId"]
             isOneToOne: false
             referencedRelation: "tools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kanban_jobId_fkey"
+            columns: ["jobId"]
+            isOneToOne: false
+            referencedRelation: "job"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kanban_jobId_fkey"
+            columns: ["jobId"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kanban_jobId_fkey"
+            columns: ["jobId"]
+            isOneToOne: false
+            referencedRelation: "openProductionOrders"
             referencedColumns: ["id"]
           },
           {
@@ -19917,6 +19960,7 @@ export type Database = {
       process: {
         Row: {
           companyId: string
+          completeAllOnScan: boolean
           createdAt: string
           createdBy: string
           customFields: Json | null
@@ -19930,6 +19974,7 @@ export type Database = {
         }
         Insert: {
           companyId: string
+          completeAllOnScan?: boolean
           createdAt?: string
           createdBy: string
           customFields?: Json | null
@@ -19943,6 +19988,7 @@ export type Database = {
         }
         Update: {
           companyId?: string
+          completeAllOnScan?: boolean
           createdAt?: string
           createdBy?: string
           customFields?: Json | null
@@ -22866,6 +22912,365 @@ export type Database = {
           },
           {
             foreignKeyName: "purchasePayment_updatedBy_fkey"
+            columns: ["updatedBy"]
+            isOneToOne: false
+            referencedRelation: "userDefaults"
+            referencedColumns: ["userId"]
+          },
+        ]
+      }
+      qualityDocument: {
+        Row: {
+          assignee: string | null
+          companyId: string | null
+          content: Json | null
+          createdAt: string
+          createdBy: string
+          description: string | null
+          id: string
+          name: string
+          status: Database["public"]["Enums"]["qualityDocumentStatus"]
+          updatedAt: string | null
+          updatedBy: string | null
+          version: number
+        }
+        Insert: {
+          assignee?: string | null
+          companyId?: string | null
+          content?: Json | null
+          createdAt?: string
+          createdBy: string
+          description?: string | null
+          id?: string
+          name: string
+          status?: Database["public"]["Enums"]["qualityDocumentStatus"]
+          updatedAt?: string | null
+          updatedBy?: string | null
+          version?: number
+        }
+        Update: {
+          assignee?: string | null
+          companyId?: string | null
+          content?: Json | null
+          createdAt?: string
+          createdBy?: string
+          description?: string | null
+          id?: string
+          name?: string
+          status?: Database["public"]["Enums"]["qualityDocumentStatus"]
+          updatedAt?: string | null
+          updatedBy?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "qualityDocument_assignee_fkey"
+            columns: ["assignee"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qualityDocument_assignee_fkey"
+            columns: ["assignee"]
+            isOneToOne: false
+            referencedRelation: "employeesAcrossCompanies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qualityDocument_assignee_fkey"
+            columns: ["assignee"]
+            isOneToOne: false
+            referencedRelation: "employeeSummary"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qualityDocument_assignee_fkey"
+            columns: ["assignee"]
+            isOneToOne: false
+            referencedRelation: "user"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qualityDocument_assignee_fkey"
+            columns: ["assignee"]
+            isOneToOne: false
+            referencedRelation: "userDefaults"
+            referencedColumns: ["userId"]
+          },
+          {
+            foreignKeyName: "qualityDocument_companyId_fkey"
+            columns: ["companyId"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qualityDocument_companyId_fkey"
+            columns: ["companyId"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qualityDocument_companyId_fkey"
+            columns: ["companyId"]
+            isOneToOne: false
+            referencedRelation: "customFieldTables"
+            referencedColumns: ["companyId"]
+          },
+          {
+            foreignKeyName: "qualityDocument_companyId_fkey"
+            columns: ["companyId"]
+            isOneToOne: false
+            referencedRelation: "integrations"
+            referencedColumns: ["companyId"]
+          },
+          {
+            foreignKeyName: "qualityDocument_createdBy_fkey"
+            columns: ["createdBy"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qualityDocument_createdBy_fkey"
+            columns: ["createdBy"]
+            isOneToOne: false
+            referencedRelation: "employeesAcrossCompanies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qualityDocument_createdBy_fkey"
+            columns: ["createdBy"]
+            isOneToOne: false
+            referencedRelation: "employeeSummary"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qualityDocument_createdBy_fkey"
+            columns: ["createdBy"]
+            isOneToOne: false
+            referencedRelation: "user"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qualityDocument_createdBy_fkey"
+            columns: ["createdBy"]
+            isOneToOne: false
+            referencedRelation: "userDefaults"
+            referencedColumns: ["userId"]
+          },
+          {
+            foreignKeyName: "qualityDocument_updatedBy_fkey"
+            columns: ["updatedBy"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qualityDocument_updatedBy_fkey"
+            columns: ["updatedBy"]
+            isOneToOne: false
+            referencedRelation: "employeesAcrossCompanies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qualityDocument_updatedBy_fkey"
+            columns: ["updatedBy"]
+            isOneToOne: false
+            referencedRelation: "employeeSummary"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qualityDocument_updatedBy_fkey"
+            columns: ["updatedBy"]
+            isOneToOne: false
+            referencedRelation: "user"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qualityDocument_updatedBy_fkey"
+            columns: ["updatedBy"]
+            isOneToOne: false
+            referencedRelation: "userDefaults"
+            referencedColumns: ["userId"]
+          },
+        ]
+      }
+      qualityDocumentStep: {
+        Row: {
+          companyId: string | null
+          createdAt: string
+          createdBy: string
+          description: string | null
+          fileTypes: string[] | null
+          id: string
+          listValues: string[] | null
+          maxValue: number | null
+          minValue: number | null
+          name: string
+          qualityDocumentId: string
+          required: boolean | null
+          sortOrder: number
+          type: Database["public"]["Enums"]["procedureStepType"]
+          unitOfMeasureCode: string | null
+          updatedAt: string | null
+          updatedBy: string | null
+        }
+        Insert: {
+          companyId?: string | null
+          createdAt?: string
+          createdBy: string
+          description?: string | null
+          fileTypes?: string[] | null
+          id?: string
+          listValues?: string[] | null
+          maxValue?: number | null
+          minValue?: number | null
+          name: string
+          qualityDocumentId: string
+          required?: boolean | null
+          sortOrder?: number
+          type: Database["public"]["Enums"]["procedureStepType"]
+          unitOfMeasureCode?: string | null
+          updatedAt?: string | null
+          updatedBy?: string | null
+        }
+        Update: {
+          companyId?: string | null
+          createdAt?: string
+          createdBy?: string
+          description?: string | null
+          fileTypes?: string[] | null
+          id?: string
+          listValues?: string[] | null
+          maxValue?: number | null
+          minValue?: number | null
+          name?: string
+          qualityDocumentId?: string
+          required?: boolean | null
+          sortOrder?: number
+          type?: Database["public"]["Enums"]["procedureStepType"]
+          unitOfMeasureCode?: string | null
+          updatedAt?: string | null
+          updatedBy?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "qualityDocumentStep_companyId_fkey"
+            columns: ["companyId"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qualityDocumentStep_companyId_fkey"
+            columns: ["companyId"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qualityDocumentStep_companyId_fkey"
+            columns: ["companyId"]
+            isOneToOne: false
+            referencedRelation: "customFieldTables"
+            referencedColumns: ["companyId"]
+          },
+          {
+            foreignKeyName: "qualityDocumentStep_companyId_fkey"
+            columns: ["companyId"]
+            isOneToOne: false
+            referencedRelation: "integrations"
+            referencedColumns: ["companyId"]
+          },
+          {
+            foreignKeyName: "qualityDocumentStep_createdBy_fkey"
+            columns: ["createdBy"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qualityDocumentStep_createdBy_fkey"
+            columns: ["createdBy"]
+            isOneToOne: false
+            referencedRelation: "employeesAcrossCompanies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qualityDocumentStep_createdBy_fkey"
+            columns: ["createdBy"]
+            isOneToOne: false
+            referencedRelation: "employeeSummary"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qualityDocumentStep_createdBy_fkey"
+            columns: ["createdBy"]
+            isOneToOne: false
+            referencedRelation: "user"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qualityDocumentStep_createdBy_fkey"
+            columns: ["createdBy"]
+            isOneToOne: false
+            referencedRelation: "userDefaults"
+            referencedColumns: ["userId"]
+          },
+          {
+            foreignKeyName: "qualityDocumentStep_qualityDocumentId_fkey"
+            columns: ["qualityDocumentId"]
+            isOneToOne: false
+            referencedRelation: "qualityDocument"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qualityDocumentStep_qualityDocumentId_fkey"
+            columns: ["qualityDocumentId"]
+            isOneToOne: false
+            referencedRelation: "qualityDocuments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qualityDocumentStep_unitOfMeasureCode_fkey"
+            columns: ["unitOfMeasureCode", "companyId"]
+            isOneToOne: false
+            referencedRelation: "unitOfMeasure"
+            referencedColumns: ["code", "companyId"]
+          },
+          {
+            foreignKeyName: "qualityDocumentStep_updatedBy_fkey"
+            columns: ["updatedBy"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qualityDocumentStep_updatedBy_fkey"
+            columns: ["updatedBy"]
+            isOneToOne: false
+            referencedRelation: "employeesAcrossCompanies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qualityDocumentStep_updatedBy_fkey"
+            columns: ["updatedBy"]
+            isOneToOne: false
+            referencedRelation: "employeeSummary"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qualityDocumentStep_updatedBy_fkey"
+            columns: ["updatedBy"]
+            isOneToOne: false
+            referencedRelation: "user"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qualityDocumentStep_updatedBy_fkey"
             columns: ["updatedBy"]
             isOneToOne: false
             referencedRelation: "userDefaults"
@@ -39145,6 +39550,7 @@ export type Database = {
           salesOrderReadableId: string | null
           scrapQuantity: number | null
           secondsToComplete: number | null
+          shelfId: string | null
           startDate: string | null
           status: Database["public"]["Enums"]["jobStatus"] | null
           tags: string[] | null
@@ -39379,6 +39785,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "job_shelfId_fkey"
+            columns: ["shelfId"]
+            isOneToOne: false
+            referencedRelation: "shelf"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "job_unitOfMeasureCode_fkey"
             columns: ["unitOfMeasureCode", "companyId"]
             isOneToOne: false
@@ -39425,12 +39838,16 @@ export type Database = {
       kanbans: {
         Row: {
           autoRelease: boolean | null
+          autoStartJob: boolean | null
           companyId: string | null
+          completedBarcodeOverride: string | null
           conversionFactor: number | null
           createdAt: string | null
           createdBy: string | null
           id: string | null
           itemId: string | null
+          jobId: string | null
+          jobReadableId: string | null
           locationId: string | null
           locationName: string | null
           name: string | null
@@ -39545,6 +39962,27 @@ export type Database = {
             columns: ["itemId"]
             isOneToOne: false
             referencedRelation: "tools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kanban_jobId_fkey"
+            columns: ["jobId"]
+            isOneToOne: false
+            referencedRelation: "job"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kanban_jobId_fkey"
+            columns: ["jobId"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kanban_jobId_fkey"
+            columns: ["jobId"]
+            isOneToOne: false
+            referencedRelation: "openProductionOrders"
             referencedColumns: ["id"]
           },
           {
@@ -40944,6 +41382,7 @@ export type Database = {
       processes: {
         Row: {
           companyId: string | null
+          completeAllOnScan: boolean | null
           createdAt: string | null
           createdBy: string | null
           customFields: Json | null
@@ -41696,6 +42135,7 @@ export type Database = {
           itemName: string | null
           itemReadableId: string | null
           jobId: string | null
+          jobOperationDescription: string | null
           jobOperationId: string | null
           locationId: string | null
           modelId: string | null
@@ -42555,6 +42995,82 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "userDefaults"
             referencedColumns: ["userId"]
+          },
+        ]
+      }
+      qualityDocuments: {
+        Row: {
+          assignee: string | null
+          companyId: string | null
+          id: string | null
+          name: string | null
+          status: Database["public"]["Enums"]["qualityDocumentStatus"] | null
+          version: number | null
+          versions: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "qualityDocument_assignee_fkey"
+            columns: ["assignee"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qualityDocument_assignee_fkey"
+            columns: ["assignee"]
+            isOneToOne: false
+            referencedRelation: "employeesAcrossCompanies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qualityDocument_assignee_fkey"
+            columns: ["assignee"]
+            isOneToOne: false
+            referencedRelation: "employeeSummary"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qualityDocument_assignee_fkey"
+            columns: ["assignee"]
+            isOneToOne: false
+            referencedRelation: "user"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qualityDocument_assignee_fkey"
+            columns: ["assignee"]
+            isOneToOne: false
+            referencedRelation: "userDefaults"
+            referencedColumns: ["userId"]
+          },
+          {
+            foreignKeyName: "qualityDocument_companyId_fkey"
+            columns: ["companyId"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qualityDocument_companyId_fkey"
+            columns: ["companyId"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qualityDocument_companyId_fkey"
+            columns: ["companyId"]
+            isOneToOne: false
+            referencedRelation: "customFieldTables"
+            referencedColumns: ["companyId"]
+          },
+          {
+            foreignKeyName: "qualityDocument_companyId_fkey"
+            columns: ["companyId"]
+            isOneToOne: false
+            referencedRelation: "integrations"
+            referencedColumns: ["companyId"]
           },
         ]
       }
@@ -44971,14 +45487,14 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "address_countryCode_fkey"
-            columns: ["customerCountryCode"]
+            columns: ["paymentCountryCode"]
             isOneToOne: false
             referencedRelation: "country"
             referencedColumns: ["alpha2"]
           },
           {
             foreignKeyName: "address_countryCode_fkey"
-            columns: ["paymentCountryCode"]
+            columns: ["customerCountryCode"]
             isOneToOne: false
             referencedRelation: "country"
             referencedColumns: ["alpha2"]
@@ -45004,6 +45520,7 @@ export type Database = {
           dropShipment: boolean | null
           exchangeRate: number | null
           exchangeRateUpdatedAt: string | null
+          externalId: Json | null
           externalNotes: Json | null
           id: string | null
           internalNotes: Json | null
@@ -48575,6 +49092,10 @@ export type Database = {
         }
         Returns: Json
       }
+      uuid_generate_v4: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       uuid_to_base58: {
         Args: {
           _uuid: string
@@ -48807,6 +49328,7 @@ export type Database = {
         | "Credit Memo"
         | "Blanket Order"
         | "Return Order"
+      kanbanOutput: "label" | "qrcode" | "url"
       makeMethodStatus: "Draft" | "Active" | "Archived"
       methodOperationOrder: "After Previous" | "With Previous"
       methodType: "Buy" | "Make" | "Pick"
@@ -48926,6 +49448,7 @@ export type Database = {
         | "Reject"
         | "Request Approval"
       purchaseOrderType: "Purchase" | "Return" | "Outside Processing"
+      qualityDocumentStatus: "Draft" | "Active" | "Archived"
       quoteLineStatus: "Not Started" | "In Progress" | "Complete" | "No Quote"
       quoteStatus:
         | "Draft"
@@ -49068,7 +49591,6 @@ export type Database = {
           owner: string | null
           owner_id: string | null
           public: boolean | null
-          type: Database["storage"]["Enums"]["buckettype"]
           updated_at: string | null
         }
         Insert: {
@@ -49081,7 +49603,6 @@ export type Database = {
           owner?: string | null
           owner_id?: string | null
           public?: boolean | null
-          type?: Database["storage"]["Enums"]["buckettype"]
           updated_at?: string | null
         }
         Update: {
@@ -49094,111 +49615,9 @@ export type Database = {
           owner?: string | null
           owner_id?: string | null
           public?: boolean | null
-          type?: Database["storage"]["Enums"]["buckettype"]
           updated_at?: string | null
         }
         Relationships: []
-      }
-      buckets_analytics: {
-        Row: {
-          created_at: string
-          format: string
-          id: string
-          type: Database["storage"]["Enums"]["buckettype"]
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          format?: string
-          id: string
-          type?: Database["storage"]["Enums"]["buckettype"]
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          format?: string
-          id?: string
-          type?: Database["storage"]["Enums"]["buckettype"]
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      iceberg_namespaces: {
-        Row: {
-          bucket_id: string
-          created_at: string
-          id: string
-          name: string
-          updated_at: string
-        }
-        Insert: {
-          bucket_id: string
-          created_at?: string
-          id?: string
-          name: string
-          updated_at?: string
-        }
-        Update: {
-          bucket_id?: string
-          created_at?: string
-          id?: string
-          name?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "iceberg_namespaces_bucket_id_fkey"
-            columns: ["bucket_id"]
-            isOneToOne: false
-            referencedRelation: "buckets_analytics"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      iceberg_tables: {
-        Row: {
-          bucket_id: string
-          created_at: string
-          id: string
-          location: string
-          name: string
-          namespace_id: string
-          updated_at: string
-        }
-        Insert: {
-          bucket_id: string
-          created_at?: string
-          id?: string
-          location: string
-          name: string
-          namespace_id: string
-          updated_at?: string
-        }
-        Update: {
-          bucket_id?: string
-          created_at?: string
-          id?: string
-          location?: string
-          name?: string
-          namespace_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "iceberg_tables_bucket_id_fkey"
-            columns: ["bucket_id"]
-            isOneToOne: false
-            referencedRelation: "buckets_analytics"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "iceberg_tables_namespace_id_fkey"
-            columns: ["namespace_id"]
-            isOneToOne: false
-            referencedRelation: "iceberg_namespaces"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       migrations: {
         Row: {
@@ -49592,7 +50011,7 @@ export type Database = {
       }
     }
     Enums: {
-      buckettype: "STANDARD" | "ANALYTICS"
+      [_ in never]: never
     }
     CompositeTypes: {
       [_ in never]: never

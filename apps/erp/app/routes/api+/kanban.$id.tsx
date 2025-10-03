@@ -8,11 +8,18 @@ import { Await, useLoaderData } from "@remix-run/react";
 import { FunctionRegion, type SupabaseClient } from "@supabase/supabase-js";
 import { tasks } from "@trigger.dev/sdk/v3";
 import { defer, type LoaderFunctionArgs } from "@vercel/remix";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense } from "react";
+import { Redirect } from "~/components/Redirect";
 
-import { getKanban } from "~/modules/inventory";
+import { getDefaultShelfForJob, getKanban } from "~/modules/inventory";
 import { getItemReplenishment } from "~/modules/items";
-import { runMRP, upsertJob, upsertJobMethod } from "~/modules/production";
+import {
+  getActiveJobOperationByJobId,
+  runMRP,
+  updateKanbanJob,
+  upsertJob,
+  upsertJobMethod,
+} from "~/modules/production";
 import {
   upsertPurchaseOrder,
   upsertPurchaseOrderLine,
@@ -36,6 +43,15 @@ async function handleKanban({
   id: string;
 }): Promise<{ data: string; error: null } | { data: null; error: string }> {
   const kanban = await getKanban(client, id);
+  if (
+    kanban.data?.replenishmentSystem === "Make" &&
+    kanban.data?.jobReadableId
+  ) {
+    return {
+      data: path.to.api.kanbanCollision(id),
+      error: null,
+    };
+  }
 
   if (kanban.error || !kanban.data) {
     return {
@@ -59,9 +75,15 @@ async function handleKanban({
       };
     }
 
-    const [nextSequence, manufacturing] = await Promise.all([
+    const [nextSequence, manufacturing, defaultShelf] = await Promise.all([
       getNextSequence(client, "job", companyId),
       getItemReplenishment(client, kanban.data.itemId!, companyId),
+      getDefaultShelfForJob(
+        client,
+        kanban.data.itemId!,
+        kanban.data.locationId!,
+        companyId
+      ),
     ]);
 
     if (nextSequence.error) {
@@ -86,11 +108,15 @@ async function handleKanban({
       };
     }
 
+    // Use shelf from kanban if it exists, otherwise use default shelf
+    const shelfId = kanban.data.shelfId || defaultShelf || undefined;
+
     const createdJob = await upsertJob(client, {
       jobId: jobReadableId,
       itemId: kanban.data.itemId!,
       quantity: kanban.data.quantity!,
       locationId: kanban.data.locationId!,
+      shelfId,
       unitOfMeasureCode: kanban.data.purchaseUnitOfMeasureCode!,
       deadlineType: "Hard Deadline",
       scrapQuantity: 0,
@@ -109,20 +135,33 @@ async function handleKanban({
       };
     }
 
-    const upsertMethod = await upsertJobMethod(
-      getCarbonServiceRole(),
-      "itemToJob",
-      {
+    const serviceRole = getCarbonServiceRole();
+
+    const [upsertMethod, associateKanban] = await Promise.all([
+      upsertJobMethod(serviceRole, "itemToJob", {
         sourceId: kanban.data.itemId!,
         targetId: id,
         companyId,
         userId,
         configuration: undefined,
-      }
-    );
+      }),
+      updateKanbanJob(serviceRole, {
+        id: kanban.data.id!,
+        jobId: id,
+        companyId,
+        userId,
+      }),
+    ]);
+
+    if (associateKanban.error) {
+      console.error(associateKanban.error);
+      return {
+        data: null,
+        error: "Failed to associate kanban with job",
+      };
+    }
 
     if (!upsertMethod.error && kanban.data.autoRelease) {
-      const serviceRole = getCarbonServiceRole();
       await Promise.all([
         tasks.trigger<typeof recalculateTask>("recalculate", {
           type: "jobRequirements",
@@ -157,24 +196,40 @@ async function handleKanban({
     }
 
     const jobId = id;
+    let redirectUrl = path.to.job(jobId);
 
-    const jobMakeMethod = await client
-      .from("jobMakeMethod")
-      .select("id")
-      .eq("jobId", jobId)
-      .is("parentMaterialId", null)
-      .eq("companyId", companyId)
-      .maybeSingle();
+    const operation = await getActiveJobOperationByJobId(
+      client,
+      jobId,
+      companyId
+    );
 
-    if (jobMakeMethod.data && kanban.data.autoRelease) {
+    if (operation && kanban.data.autoRelease) {
+      let operationId = operation.id;
+      if (kanban.data.autoStartJob) {
+        let setupTime = operation.setupTime;
+        let laborTime = operation.laborTime;
+        let machineTime = operation.machineTime;
+        let type: "Setup" | "Labor" | "Machine" = "Labor";
+        if (machineTime && !laborTime) {
+          type = "Machine";
+        }
+        if (setupTime) {
+          type = "Setup";
+        }
+        redirectUrl = path.to.external.mesJobOperationStart(operationId, type);
+      } else {
+        redirectUrl = path.to.external.mesJobOperation(operationId);
+      }
+
       return {
-        data: path.to.file.jobTraveler(jobMakeMethod.data.id),
+        data: redirectUrl,
         error: null,
       };
     }
 
     return {
-      data: path.to.job(jobId),
+      data: redirectUrl,
       error: null,
     };
   } else if (kanban.data.replenishmentSystem === "Buy") {
@@ -326,24 +381,10 @@ export default function KanbanRedirectRoute() {
             if (resolvedPromise.error) {
               return <div>{resolvedPromise.error}</div>;
             }
-            return <KanbanRedirect path={resolvedPromise?.data ?? ""} />;
+            return <Redirect path={resolvedPromise?.data ?? ""} />;
           }}
         </Await>
       </Suspense>
     </div>
   );
 }
-
-const KanbanRedirect = ({ path }: { path: string }) => {
-  const [isLoading, setIsLoading] = useState(true);
-  useEffect(() => {
-    window.location.href = path;
-    setIsLoading(false);
-  }, [path]);
-
-  return (
-    <div className="flex h-screen w-screen items-center justify-center">
-      <Loading className="size-8" isLoading={isLoading} />
-    </div>
-  );
-};

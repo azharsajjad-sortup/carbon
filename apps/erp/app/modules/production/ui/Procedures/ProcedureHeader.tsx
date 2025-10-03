@@ -67,7 +67,7 @@ const ProcedureHeader = () => {
           />
           <Heading size="h4" className="flex items-center gap-2">
             <span>{routeData?.procedure?.name}</span>
-            <Badge variant="secondary">V{routeData?.procedure?.version}</Badge>
+            <Badge variant="outline">V{routeData?.procedure?.version}</Badge>
             <ProcedureStatus status={routeData?.procedure?.status} />
           </Heading>
           <Copy text={routeData?.procedure?.name ?? ""} />
@@ -125,10 +125,11 @@ const ProcedureHeader = () => {
                         <Link
                           key={version.id}
                           to={path.to.procedure(version.id)}
-                          className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+                          className="relative flex gap-2 cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
                         >
-                          <span className="mr-2">V{version.version}</span>
+                          <Badge variant="outline">V{version.version}</Badge>
                           {version.name}
+                          <ProcedureStatus status={version.status} />
                         </Link>
                       ))}
                     </>

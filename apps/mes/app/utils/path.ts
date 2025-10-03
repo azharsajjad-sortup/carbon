@@ -1,7 +1,8 @@
-import { getAppUrl, SUPABASE_URL } from "@carbon/auth";
+import { getAppUrl, getMESUrl, SUPABASE_URL } from "@carbon/auth";
 import { generatePath } from "@remix-run/react";
 
 export const ERP_URL = getAppUrl();
+export const MES_URL = getMESUrl();
 
 const x = "/x";
 const api = "/api";
@@ -10,13 +11,13 @@ const file = `/file`;
 export const path = {
   to: {
     api: {
-      autodeskToken: `${api}/autodesk/token`,
       batchNumbers: (itemId: string) =>
         generatePath(`${api}/batch-numbers?itemId=${itemId}`),
       serialNumbers: (itemId: string) =>
         generatePath(`${api}/serial-numbers?itemId=${itemId}`),
     },
     file: {
+      jobTraveler: (id: string) => `${getAppUrl()}${file}/traveler/${id}.pdf`,
       operationLabelsPdf: (
         id: string,
         {
@@ -67,10 +68,11 @@ export const path = {
       generatePath(`${x}/company/switch/${companyId}`),
     complete: `${x}/complete`,
     endShift: `${x}/end-shift`,
+    endOperation: (id: string) => generatePath(`${x}/end/${id}`),
     feedback: `${x}/feedback`,
     finish: `${x}/finish`,
-
-    healthcheck: "/healthcheck",
+    health: "/health",
+    kanbanComplete: (id: string) => `${ERP_URL}/api/kanban/complete/${id}`,
     inventoryAdjustment: `${x}/adjustment`,
     issue: `${x}/issue`,
     issueTrackedEntity: `${x}/issue-tracked-entity`,
@@ -91,6 +93,7 @@ export const path = {
     root: "/",
     scrap: `${x}/scrap`,
     scrapReasons: `${api}/scrap-reasons`,
+    startOperation: (id: string) => generatePath(`${x}/start/${id}`),
     switchCompany: (companyId: string) =>
       generatePath(`${x}/company/switch/${companyId}`),
     unconsume: `${x}/unconsume`,

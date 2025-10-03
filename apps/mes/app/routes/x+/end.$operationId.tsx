@@ -4,7 +4,6 @@ import { flash } from "@carbon/auth/session.server";
 import { FunctionRegion } from "@supabase/supabase-js";
 import { redirect, type LoaderFunctionArgs } from "@vercel/remix";
 import {
-  endProductionEventsForJobOperation,
   finishJobOperation,
   getTrackedEntitiesByMakeMethodId,
   insertProductionQuantity,
@@ -19,18 +18,18 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
   const url = new URL(request.url);
   let trackedEntityId = url.searchParams.get("trackedEntityId");
-
   const serviceRole = await getCarbonServiceRole();
 
   const [jobOperation, productionQuantities] = await Promise.all([
     serviceRole
       .from("jobOperation")
-      .select("*")
+      .select("*, ...process(completeAllOnScan)")
       .eq("id", operationId)
       .maybeSingle(),
     serviceRole
       .from("productionQuantity")
       .select("*")
+      .eq("type", "Production")
       .eq("jobOperationId", operationId),
   ]);
 
@@ -39,37 +38,28 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     !jobOperation.data ||
     !jobOperation.data.jobMakeMethodId
   ) {
-    throw redirect(
+    return redirect(
       path.to.operations,
-      await flash(
-        request,
-        error(jobOperation.error, "Failed to fetch job operation")
-      )
+      await flash(request, {
+        ...error(jobOperation.error, "Failed to fetch job operation"),
+        flash: "error",
+      })
     );
   }
 
   if (jobOperation.data?.companyId !== companyId) {
-    throw redirect(
+    return redirect(
       path.to.operations,
-      await flash(
-        request,
-        error("You are not authorized to start this operation", "Unauthorized")
-      )
+      await flash(request, {
+        ...error(
+          "You are not authorized to start this operation",
+          "Unauthorized"
+        ),
+        flash: "error",
+      })
     );
   }
-
-  const endEvents = await endProductionEventsForJobOperation(serviceRole, {
-    jobOperationId: jobOperation.data.id,
-    employeeId: userId,
-    companyId,
-  });
-
-  if (endEvents.error) {
-    throw redirect(
-      path.to.operations,
-      await flash(request, error(endEvents.error, "Failed to end event"))
-    );
-  }
+  const completeAll = jobOperation.data?.completeAllOnScan ?? false;
 
   const [jobMakeMethod] = await Promise.all([
     serviceRole
@@ -80,7 +70,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   ]);
 
   if (jobMakeMethod.error || !jobMakeMethod.data) {
-    throw redirect(
+    return redirect(
       path.to.operations,
       await flash(
         request,
@@ -93,8 +83,13 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     productionQuantities.data?.reduce((acc, curr) => acc + curr.quantity, 0) ??
     0;
 
-  const quantityToComplete =
-    (jobOperation.data.operationQuantity ?? 0) - currentQuantity;
+  const quantityToComplete = completeAll
+    ? Math.max(0, (jobOperation.data.operationQuantity ?? 0) - currentQuantity)
+    : 1;
+
+  const willBeFinished =
+    quantityToComplete + currentQuantity >=
+    (jobOperation.data.operationQuantity ?? 0);
 
   const isTrackedEntity =
     jobMakeMethod.data.requiresSerialTracking ||
@@ -132,10 +127,35 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
         const newTrackedEntityId = response.data?.newTrackedEntityId;
 
         if (newTrackedEntityId) {
-          throw redirect(
+          return redirect(
             `${path.to.operation(
               operationId
             )}?trackedEntityId=${newTrackedEntityId}`
+          );
+        }
+
+        if (willBeFinished) {
+          const finishOperation = await finishJobOperation(serviceRole, {
+            jobOperationId: jobOperation.data.id,
+            userId,
+          });
+
+          if (finishOperation.error) {
+            return redirect(
+              path.to.operation(operationId),
+              await flash(
+                request,
+                error(finishOperation.error, "Failed to finish operation")
+              )
+            );
+          }
+
+          return redirect(
+            path.to.operations,
+            await flash(request, {
+              ...success("Operation finished successfully"),
+              flash: "success",
+            })
           );
         }
       } else if (jobMakeMethod.data.requiresBatchTracking) {
@@ -154,12 +174,12 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
         });
 
         if (response.error) {
-          throw redirect(
+          return redirect(
             path.to.operation(operationId),
-            await flash(
-              request,
-              error(response.error, "Failed to complete job operation")
-            )
+            await flash(request, {
+              ...error(response.error, "Failed to complete job operation"),
+              flash: "error",
+            })
           );
         }
       }
@@ -173,37 +193,71 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       });
 
       if (insertProduction.error) {
-        throw redirect(
+        return redirect(
           path.to.operation(operationId),
-          await flash(
-            request,
-            error(
+          await flash(request, {
+            ...error(
               insertProduction.error,
               "Failed to record production quantity"
-            )
-          )
+            ),
+            flash: "error",
+          })
+        );
+      }
+
+      const issue = await serviceRole.functions.invoke("issue", {
+        body: {
+          id: operationId,
+          type: "jobOperation",
+          quantity: quantityToComplete,
+          companyId,
+          userId,
+        },
+        region: FunctionRegion.UsEast1,
+      });
+
+      if (issue.error) {
+        return redirect(
+          path.to.operation(operationId),
+          await flash(request, {
+            ...error(issue.error, "Failed to issue materials"),
+            flash: "error",
+          })
         );
       }
     }
   }
 
-  const finishOperation = await finishJobOperation(serviceRole, {
-    jobOperationId: jobOperation.data.id,
-    userId,
-  });
+  if (willBeFinished) {
+    const finishOperation = await finishJobOperation(serviceRole, {
+      jobOperationId: jobOperation.data.id,
+      userId,
+    });
 
-  if (finishOperation.error) {
-    throw redirect(
-      path.to.operation(operationId),
-      await flash(
-        request,
-        error(finishOperation.error, "Failed to finish operation")
-      )
+    if (finishOperation.error) {
+      return redirect(
+        path.to.operation(operationId),
+        await flash(request, {
+          ...error(finishOperation.error, "Failed to finish operation"),
+          flash: "error",
+        })
+      );
+    }
+
+    return redirect(
+      path.to.operations,
+      await flash(request, {
+        ...success("Operation finished successfully"),
+        flash: "success",
+      })
     );
   }
 
-  throw redirect(
-    path.to.operations,
-    await flash(request, success("Operation finished successfully"))
+  return redirect(
+    path.to.operation(operationId),
+    await flash(request, {
+      ...success("Successfully completed part"),
+      flash: "success",
+    })
   );
 }

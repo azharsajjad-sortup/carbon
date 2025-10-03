@@ -14,13 +14,13 @@ import { SidebarProvider, TooltipProvider, useMount } from "@carbon/react";
 import {
   AcademyBanner,
   ItarPopup,
-  useKeyboardWedgeNavigation,
+  useKeyboardWedge,
   useNProgress,
 } from "@carbon/remix";
 import { getStripeCustomerByCompanyId } from "@carbon/stripe/stripe.server";
 import { Edition } from "@carbon/utils";
 import type { ShouldRevalidateFunction } from "@remix-run/react";
-import { Outlet, useLoaderData } from "@remix-run/react";
+import { Outlet, useLoaderData, useNavigate } from "@remix-run/react";
 import type { LoaderFunctionArgs } from "@vercel/remix";
 import { json, redirect } from "@vercel/remix";
 import posthog from "posthog-js";
@@ -31,7 +31,7 @@ import {
   getActiveJobCount,
   getLocationsByCompany,
 } from "~/services/operations.service";
-import { path } from "~/utils/path";
+import { ERP_URL, MES_URL, path } from "~/utils/path";
 
 export const config = {
   runtime: "nodejs",
@@ -131,8 +131,22 @@ export default function AuthenticatedRoute() {
     user,
   } = useLoaderData<typeof loader>();
 
+  const navigate = useNavigate();
+
   useNProgress();
-  useKeyboardWedgeNavigation();
+  useKeyboardWedge({
+    test: (input) =>
+      (input.startsWith(MES_URL) || input.startsWith(ERP_URL)) &&
+      !input.includes("/kanban/complete/"), // we handle this more gracefully in JobOperation
+    callback: (input) => {
+      try {
+        const url = new URL(input);
+        navigate(url.pathname + url.search);
+      } catch {
+        navigate(input);
+      }
+    },
+  });
 
   useMount(() => {
     posthog.identify(user?.id, {

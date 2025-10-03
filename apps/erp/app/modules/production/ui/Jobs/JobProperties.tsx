@@ -31,6 +31,7 @@ import {
   Customer,
   Item,
   Location,
+  Shelf,
   Tags,
   UnitOfMeasure,
 } from "~/components/Form";
@@ -207,7 +208,6 @@ const JobProperties = () => {
         <Suspense fallback={null}>
           <Await resolve={routeData?.trackedEntities}>
             {(entities) => {
-              console.log("entities", entities);
               const trackingType = routeData?.job?.itemTrackingType ?? "";
 
               if (!["Batch", "Serial"].includes(trackingType)) {
@@ -219,7 +219,6 @@ const JobProperties = () => {
               return (
                 <>
                   {trackedEntities.map((entity, index) => {
-                    console.log("entity", entity);
                     const trackingNumber: string =
                       // @ts-ignore
                       entity?.attributes?.["Batch Number"]?.toString() ?? "";
@@ -498,6 +497,25 @@ const JobProperties = () => {
             if (value?.value) {
               onUpdate("locationId", value.value);
             }
+          }}
+        />
+      </ValidatedForm>
+
+      <ValidatedForm
+        defaultValues={{ shelfId: routeData?.job?.shelfId ?? undefined }}
+        validator={z.object({
+          shelfId: zfd.text(z.string().optional()),
+        })}
+        className="w-full"
+      >
+        <Shelf
+          label="Shelf"
+          name="shelfId"
+          inline
+          locationId={routeData?.job?.locationId ?? undefined}
+          isReadOnly={isDisabled}
+          onChange={(value) => {
+            onUpdate("shelfId", value?.id ?? null);
           }}
         />
       </ValidatedForm>

@@ -4,6 +4,7 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
   cn,
@@ -16,6 +17,7 @@ import {
   TooltipContent,
   TooltipTrigger,
   Tr,
+  useDisclosure,
   VStack,
 } from "@carbon/react";
 import { formatDate } from "@carbon/utils";
@@ -35,10 +37,11 @@ import {
   LuEllipsisVertical,
   LuImage,
   LuInfo,
+  LuTriangleAlert,
 } from "react-icons/lu";
-import { CustomerAvatar, Hyperlink } from "~/components";
-import { usePercentFormatter, useRouteData } from "~/hooks";
-import type { Job } from "~/modules/production/types";
+import { CustomerAvatar, Hyperlink, MethodIcon } from "~/components";
+import { Confirm } from "~/components/Modals";
+import { usePercentFormatter, usePermissions, useRouteData } from "~/hooks";
 import JobStatus from "~/modules/production/ui/Jobs/JobStatus";
 import { getPrivateUrl, path } from "~/utils/path";
 import type {
@@ -64,6 +67,8 @@ const SalesOrderSummary = ({
     customer: Customer;
     quote: Quotation;
   }>(path.to.salesOrder(orderId));
+
+  const salesOrderToJobsModal = useDisclosure();
 
   const { locale } = useLocale();
   const formatter = useMemo(
@@ -102,131 +107,167 @@ const SalesOrderSummary = ({
     (routeData?.salesOrder?.exchangeRate ?? 1) *
     (routeData?.salesOrder?.shippingCost ?? 0);
   const total = subtotal + tax + convertedShippingCost;
+  const permissions = usePermissions();
 
   return (
-    <Card>
-      <CardHeader>
-        <HStack className="justify-between items-center">
-          <div className="flex flex-col gap-1">
-            <CardTitle>{routeData?.salesOrder.salesOrderId}</CardTitle>
-            <CardDescription>Sales Order</CardDescription>
-          </div>
-          <div className="flex flex-col gap-1 items-end">
-            <CustomerAvatar
-              customerId={routeData?.salesOrder.customerId ?? null}
-            />
-            {routeData?.salesOrder?.orderDate && (
-              <span className="text-muted-foreground text-sm">
-                Ordered {formatDate(routeData?.salesOrder.orderDate)}
-              </span>
-            )}
-            {routeData?.quote?.digitalQuoteAcceptedBy && (
-              <span className="text-muted-foreground text-sm flex flex-row items-center gap-x-1">
-                via Digital Quote
-                <Tooltip>
-                  <TooltipTrigger>
-                    <LuInfo className="size-4" />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <div className="flex flex-col gap-y-0">
-                      <span>{routeData?.quote?.digitalQuoteAcceptedBy}</span>
-                      <span>
-                        {routeData?.quote?.digitalQuoteAcceptedByEmail}
-                      </span>
-                    </div>
-                  </TooltipContent>
-                </Tooltip>
-              </span>
-            )}
-          </div>
-        </HStack>
-      </CardHeader>
-      <CardContent>
-        <LineItems
-          salesOrder={routeData?.salesOrder}
-          currencyCode={routeData?.salesOrder?.currencyCode ?? "USD"}
-          locale={locale}
-          formatter={formatter}
-          lines={routeData?.lines ?? []}
-        />
-
-        <VStack spacing={2} className="mt-8">
-          <HStack className="justify-between text-base text-muted-foreground w-full">
-            <span>Subtotal:</span>
-            <MotionNumber
-              value={subtotal}
-              format={{
-                style: "currency",
-                currency: routeData?.salesOrder?.currencyCode ?? "USD",
-              }}
-              locales={locale}
-            />
-          </HStack>
-          <HStack className="justify-between text-base text-muted-foreground w-full">
-            <span>Tax:</span>
-            <MotionNumber
-              value={tax}
-              format={{
-                style: "currency",
-                currency: routeData?.salesOrder?.currencyCode ?? "USD",
-              }}
-              locales={locale}
-            />
-          </HStack>
-          <HStack className="justify-between text-base text-muted-foreground w-full">
-            {convertedShippingCost > 0 ? (
-              <>
-                <VStack spacing={0}>
-                  <span>Shipping:</span>
-                  <Button
-                    variant="link"
-                    size="sm"
-                    className="text-muted-foreground"
-                    onClick={onEditShippingCost}
-                  >
-                    Edit Shipping
-                  </Button>
-                </VStack>
-                <MotionNumber
-                  value={convertedShippingCost}
-                  format={{
-                    style: "currency",
-                    currency: routeData?.salesOrder.currencyCode ?? "USD",
-                  }}
-                  locales={locale}
-                />
-              </>
-            ) : isEditable ? (
-              <Button
-                variant="link"
-                size="sm"
-                className="text-muted-foreground"
-                onClick={onEditShippingCost}
-              >
-                Add Shipping
+    <>
+      {["To Ship and Invoice", "To Ship"].includes(
+        routeData?.salesOrder?.status ?? ""
+      ) &&
+        permissions.can("create", "production") &&
+        permissions.is("employee") &&
+        !routeData?.salesOrder?.jobs && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex flex-row gap-2">
+                <LuTriangleAlert /> Jobs Required
+              </CardTitle>
+              <CardDescription>
+                This sales order has lines that require jobs to be created
+              </CardDescription>
+            </CardHeader>
+            <CardFooter>
+              <Button variant="primary" onClick={salesOrderToJobsModal.onOpen}>
+                Create Jobs
               </Button>
-            ) : null}
+            </CardFooter>
+            {salesOrderToJobsModal.isOpen && (
+              <Confirm
+                title="Convert Lines to Jobs"
+                text="Are you sure you want to create jobs for this sales order? This will create jobs for all lines that don't already have jobs."
+                confirmText="Create Jobs"
+                onCancel={salesOrderToJobsModal.onClose}
+                onSubmit={salesOrderToJobsModal.onClose}
+                action={path.to.salesOrderLinesToJobs(orderId)}
+              />
+            )}
+          </Card>
+        )}
+      <Card>
+        <CardHeader>
+          <HStack className="justify-between items-center">
+            <div className="flex flex-col gap-1">
+              <CardTitle>{routeData?.salesOrder.salesOrderId}</CardTitle>
+              <CardDescription>Sales Order</CardDescription>
+            </div>
+            <div className="flex flex-col gap-1 items-end">
+              <CustomerAvatar
+                customerId={routeData?.salesOrder.customerId ?? null}
+              />
+              {routeData?.salesOrder?.orderDate && (
+                <span className="text-muted-foreground text-sm">
+                  Ordered {formatDate(routeData?.salesOrder.orderDate)}
+                </span>
+              )}
+              {routeData?.quote?.digitalQuoteAcceptedBy && (
+                <span className="text-muted-foreground text-sm flex flex-row items-center gap-x-1">
+                  via Digital Quote
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <LuInfo className="size-4" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <div className="flex flex-col gap-y-0">
+                        <span>{routeData?.quote?.digitalQuoteAcceptedBy}</span>
+                        <span>
+                          {routeData?.quote?.digitalQuoteAcceptedByEmail}
+                        </span>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                </span>
+              )}
+            </div>
           </HStack>
-          <HStack className="justify-between text-xl font-bold w-full">
-            <span>Total:</span>
-            <MotionNumber
-              value={total}
-              format={{
-                style: "currency",
-                currency: routeData?.salesOrder?.currencyCode ?? "USD",
-              }}
-              locales={locale}
-            />
-          </HStack>
-        </VStack>
-      </CardContent>
-    </Card>
+        </CardHeader>
+        <CardContent>
+          <LineItems
+            salesOrder={routeData?.salesOrder}
+            currencyCode={routeData?.salesOrder?.currencyCode ?? "USD"}
+            locale={locale}
+            formatter={formatter}
+            lines={routeData?.lines ?? []}
+          />
+
+          <VStack spacing={2} className="mt-8">
+            <HStack className="justify-between text-base text-muted-foreground w-full">
+              <span>Subtotal:</span>
+              <MotionNumber
+                value={subtotal}
+                format={{
+                  style: "currency",
+                  currency: routeData?.salesOrder?.currencyCode ?? "USD",
+                }}
+                locales={locale}
+              />
+            </HStack>
+            <HStack className="justify-between text-base text-muted-foreground w-full">
+              <span>Tax:</span>
+              <MotionNumber
+                value={tax}
+                format={{
+                  style: "currency",
+                  currency: routeData?.salesOrder?.currencyCode ?? "USD",
+                }}
+                locales={locale}
+              />
+            </HStack>
+            <HStack className="justify-between text-base text-muted-foreground w-full">
+              {convertedShippingCost > 0 ? (
+                <>
+                  <VStack spacing={0}>
+                    <span>Shipping:</span>
+                    <Button
+                      variant="link"
+                      size="sm"
+                      className="text-muted-foreground"
+                      onClick={onEditShippingCost}
+                    >
+                      Edit Shipping
+                    </Button>
+                  </VStack>
+                  <MotionNumber
+                    value={convertedShippingCost}
+                    format={{
+                      style: "currency",
+                      currency: routeData?.salesOrder.currencyCode ?? "USD",
+                    }}
+                    locales={locale}
+                  />
+                </>
+              ) : isEditable ? (
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="text-muted-foreground"
+                  onClick={onEditShippingCost}
+                >
+                  Add Shipping
+                </Button>
+              ) : null}
+            </HStack>
+            <HStack className="justify-between text-xl font-bold w-full">
+              <span>Total:</span>
+              <MotionNumber
+                value={total}
+                format={{
+                  style: "currency",
+                  currency: routeData?.salesOrder?.currencyCode ?? "USD",
+                }}
+                locales={locale}
+              />
+            </HStack>
+          </VStack>
+        </CardContent>
+      </Card>
+    </>
   );
 };
 
 function LineItems({
   currencyCode,
   locale,
+  formatter,
   lines,
   salesOrder,
 }: {
@@ -268,6 +309,14 @@ function LineItems({
           jobs.reduce((acc, job) => acc + job.quantityComplete, 0) >=
           (line.saleQuantity ?? 0);
 
+        const hasAnyQuantityReleased =
+          jobs.reduce((acc, job) => {
+            if (job.status !== "Planned" && job.status !== "Draft") {
+              return acc + job.productionQuantity;
+            }
+            return acc;
+          }, 0) > 0;
+
         const jobVariant: "red" | "orange" | "green" =
           hasEnoughJobsToCoverQuantity && hasEnoughCompletedToCoverQuantity
             ? "green"
@@ -275,11 +324,17 @@ function LineItems({
             ? "orange"
             : "red";
 
-        const jobLabel: "Requires Jobs" | "In Progress" | "Complete" =
+        const jobLabel:
+          | "Requires Jobs"
+          | "In Progress"
+          | "Complete"
+          | "Planned" =
           hasEnoughJobsToCoverQuantity && hasEnoughCompletedToCoverQuantity
             ? "Complete"
             : hasEnoughJobsToCoverQuantity
-            ? "In Progress"
+            ? hasAnyQuantityReleased
+              ? "In Progress"
+              : "Planned"
             : "Requires Jobs";
 
         return (
@@ -308,51 +363,87 @@ function LineItems({
                   className="flex flex-col cursor-pointer w-full"
                   onClick={() => toggleOpen(line.id!)}
                 >
-                  <div className="flex items-center gap-x-4 justify-between flex-grow min-w-0">
-                    <HStack spacing={2} className="min-w-0 flex-shrink">
-                      <Heading className="truncate">
-                        {line.itemReadableId}
-                      </Heading>
-                      <Button
-                        asChild
-                        variant="link"
-                        size="sm"
-                        className="text-muted-foreground flex-shrink-0"
+                  <div className="flex items-center justify-between w-full">
+                    <VStack
+                      spacing={0}
+                      className="flex-shrink-0 min-w-0 w-auto"
+                    >
+                      <HStack
+                        spacing={2}
+                        className="flex min-w-0 flex-shrink-0"
                       >
-                        <Link to={path.to.salesOrderLine(orderId, line.id!)}>
-                          Edit
-                        </Link>
-                      </Button>
-                    </HStack>
-                    <HStack spacing={4} className="flex-shrink-0 ml-4">
-                      <MotionNumber
-                        className="font-bold text-xl whitespace-nowrap"
-                        value={
-                          ((line?.convertedUnitPrice ?? 0) *
-                            (line?.saleQuantity ?? 0) +
-                            (line?.convertedAddOnCost ?? 0) +
-                            (line?.convertedShippingCost ?? 0)) *
-                          (1 + (line?.taxPercent ?? 0))
-                        }
-                        format={{
-                          style: "currency",
-                          currency: currencyCode,
-                        }}
-                        locales={locale}
-                      />
-                      <motion.div
-                        animate={{
-                          rotate: openItems.includes(line.id) ? 90 : 0,
-                        }}
-                        transition={{ duration: 0.3 }}
-                      >
-                        <LuChevronRight size={24} />
-                      </motion.div>
-                    </HStack>
+                        <Heading className="truncate">
+                          {line.itemReadableId}
+                        </Heading>
+                        <Button
+                          asChild
+                          variant="link"
+                          size="sm"
+                          className="text-muted-foreground flex-shrink-0"
+                        >
+                          <Link to={path.to.salesOrderLine(orderId, line.id!)}>
+                            Edit
+                          </Link>
+                        </Button>
+                      </HStack>
+                      <span className="text-muted-foreground text-base truncate">
+                        {line.description}
+                      </span>
+                    </VStack>
+                    <VStack
+                      spacing={2}
+                      className="flex-shrink-0 items-end w-auto"
+                    >
+                      <HStack spacing={4}>
+                        <MotionNumber
+                          className="font-bold text-xl whitespace-nowrap"
+                          value={
+                            ((line?.convertedUnitPrice ?? 0) *
+                              (line?.saleQuantity ?? 0) +
+                              (line?.convertedAddOnCost ?? 0) +
+                              (line?.convertedShippingCost ?? 0)) *
+                            (1 + (line?.taxPercent ?? 0))
+                          }
+                          format={{
+                            style: "currency",
+                            currency: currencyCode,
+                          }}
+                          locales={locale}
+                        />
+                        <motion.div
+                          animate={{
+                            rotate: openItems.includes(line.id) ? 90 : 0,
+                          }}
+                          transition={{ duration: 0.3 }}
+                        >
+                          <LuChevronRight size={24} />
+                        </motion.div>
+                      </HStack>
+                      <div className="flex items-center gap-2">
+                        <Badge
+                          variant="outline"
+                          className="flex items-center gap-2"
+                        >
+                          {line.saleQuantity}
+                          <MethodIcon type={line.methodType ?? "Pick"} />
+                        </Badge>
+                        <Badge variant="green">
+                          {formatter.format(
+                            (line.unitPrice ?? 0) +
+                              (line.addOnCost ?? 0) +
+                              (line.shippingCost ?? 0)
+                          )}{" "}
+                          {line.unitOfMeasureCode}
+                        </Badge>
+                        {(line.taxPercent ?? 0) > 0 ? (
+                          <Badge variant="red">
+                            {percentFormatter.format(line.taxPercent ?? 0)} Tax
+                          </Badge>
+                        ) : null}
+                      </div>
+                    </VStack>
                   </div>
-                  <span className="text-muted-foreground text-base truncate">
-                    {line.description}
-                  </span>
+
                   {isMade && (
                     <div className="mt-2 flex flex-row items-end gap-x-2">
                       <Badge variant={jobVariant}>{jobLabel}</Badge>
@@ -546,7 +637,7 @@ function LineItems({
                             index === jobs.length - 1 && "border-b-0"
                           )}
                         >
-                          <SalesOrderJobItem job={job as Job} />
+                          <SalesOrderJobItem job={job} />
                         </div>
                       ))}
                   </div>
