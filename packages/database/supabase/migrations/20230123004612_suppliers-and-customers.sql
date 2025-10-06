@@ -71,7 +71,7 @@ CREATE TABLE "supplierStatus" (
 CREATE INDEX "supplierStatus_companyId_fkey" ON "supplierStatus"("companyId");
 
 CREATE TABLE "supplierType" (
-    "id" TEXT NOT NULL DEFAULT uuid_generate_v4(),
+    "id" TEXT NOT NULL DEFAULT gen_random_uuid(),
     "name" TEXT NOT NULL,
     "protected" BOOLEAN NOT NULL DEFAULT false,
     "companyId" TEXT NOT NULL,
@@ -91,7 +91,7 @@ CREATE TABLE "supplierType" (
 CREATE INDEX "supplierType_companyId_fkey" ON "supplierType"("companyId");
 
 CREATE TABLE "supplier" (
-    "id" TEXT NOT NULL DEFAULT uuid_generate_v4(),
+    "id" TEXT NOT NULL DEFAULT gen_random_uuid(),
     "name" TEXT NOT NULL,
     "supplierTypeId" TEXT,
     "supplierStatusId" TEXT,
@@ -183,7 +183,7 @@ CREATE TABLE "customerStatus" (
 CREATE INDEX "customerStatus_companyId_fkey" ON "customerStatus"("companyId");
 
 CREATE TABLE "customerType" (
-    "id" TEXT NOT NULL DEFAULT uuid_generate_v4(),
+    "id" TEXT NOT NULL DEFAULT gen_random_uuid(),
     "name" TEXT NOT NULL,
     "protected" BOOLEAN NOT NULL DEFAULT false,
     "companyId" TEXT NOT NULL,
@@ -203,7 +203,7 @@ CREATE TABLE "customerType" (
 CREATE INDEX "customerType_companyId_fkey" ON "customerType"("companyId");
 
 CREATE TABLE "customer" (
-    "id" TEXT NOT NULL DEFAULT uuid_generate_v4(),
+    "id" TEXT NOT NULL DEFAULT gen_random_uuid(),
     "name" TEXT NOT NULL,
     "customerTypeId" TEXT,
     "customerStatusId" TEXT,

@@ -1,7 +1,5 @@
  -- Example: enable the "vector" extension.
-CREATE EXTENSION vector
-WITH
-  SCHEMA extensions;
+CREATE EXTENSION IF NOT EXISTS vector;
 
 CREATE EXTENSION IF NOT EXISTS pgmq;
 
@@ -21,13 +19,13 @@ WITH
 
 COMMIT;
 
-ALTER TABLE "item" ADD COLUMN "embedding" halfvec(384);
-ALTER TABLE "supplier" ADD COLUMN "embedding" halfvec(384);
-ALTER TABLE "customer" ADD COLUMN "embedding" halfvec(384);
+ALTER TABLE "item" ADD COLUMN "embedding" extensions.vector(384);
+ALTER TABLE "supplier" ADD COLUMN "embedding" extensions.vector(384);
+ALTER TABLE "customer" ADD COLUMN "embedding" extensions.vector(384);
 
-CREATE INDEX ON "item" USING hnsw (embedding halfvec_cosine_ops);
-CREATE INDEX ON "supplier" USING hnsw (embedding halfvec_cosine_ops);
-CREATE INDEX ON "customer" USING hnsw (embedding halfvec_cosine_ops);
+CREATE INDEX ON "item" USING hnsw (embedding extensions.vector_cosine_ops);
+CREATE INDEX ON "supplier" USING hnsw (embedding extensions.vector_cosine_ops);
+CREATE INDEX ON "customer" USING hnsw (embedding extensions.vector_cosine_ops);
 
 
 -- Schema for utility functions
@@ -295,7 +293,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 
 CREATE OR REPLACE FUNCTION public.items_search(
-  query_embedding vector(384),
+  query_embedding vector(384),         -- keep unqualified type for operator support
   match_threshold float,
   match_count int,
   p_company_id text
@@ -311,15 +309,15 @@ LANGUAGE sql STABLE
 SECURITY DEFINER
 AS $$
   SELECT
-    item.id,
-    item."readableId",
-    item.name,
-    item.description,
-    1 - (item.embedding <=> query_embedding) AS similarity
-  FROM item
-  WHERE 1 - (item.embedding <=> query_embedding) > match_threshold
-  AND "companyId" = p_company_id
-  ORDER BY (item.embedding <=> query_embedding) ASC
+    i.id,
+    i."readableId",
+    i.name,
+    i.description,
+    1 - (i.embedding <=> query_embedding) AS similarity
+  FROM item AS i
+  WHERE (1 - (i.embedding <=> query_embedding)) > match_threshold
+    AND i."companyId" = p_company_id
+  ORDER BY i.embedding <=> query_embedding ASC
   LIMIT LEAST(match_count, 10);
 $$;
 
