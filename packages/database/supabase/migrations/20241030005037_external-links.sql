@@ -5,7 +5,7 @@ UPDATE "company" SET "digitalQuoteEnabled" = TRUE;
 CREATE TYPE "externalLinkDocumentType" AS ENUM ('Quote');
 
 CREATE TABLE "externalLink" (
-  "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+  "id" uuid NOT NULL DEFAULT gen_random_uuid(),
   "documentType" "externalLinkDocumentType" NOT NULL,
   "documentId" TEXT NOT NULL,
   "customerId" TEXT,
@@ -52,7 +52,7 @@ CREATE POLICY "Employees with sales_delete can delete sales-related external lin
   );
 
 CREATE TABLE "externalLinkMessage" (
-  "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+  "id" uuid NOT NULL DEFAULT gen_random_uuid(),
   "externalLinkId" uuid NOT NULL,
   "message" TEXT NOT NULL,
   "createdBy" TEXT,

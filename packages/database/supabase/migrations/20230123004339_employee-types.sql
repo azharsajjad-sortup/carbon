@@ -2,7 +2,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- CreateTable
 CREATE TABLE "employeeType" (
-    "id" TEXT NOT NULL DEFAULT uuid_generate_v4(),
+    "id" TEXT NOT NULL DEFAULT gen_random_uuid(),
     "name" TEXT NOT NULL,
     "companyId" TEXT NOT NULL,
     "protected" BOOLEAN NOT NULL DEFAULT false,

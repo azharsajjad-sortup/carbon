@@ -16,8 +16,8 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION public.uuid_generate_v4()
+CREATE OR REPLACE FUNCTION public.gen_random_uuid()
 RETURNS uuid
 LANGUAGE sql
 STABLE
-AS $$ SELECT extensions.uuid_generate_v4() $$;
+AS $$ SELECT extensions.gen_random_uuid() $$;
