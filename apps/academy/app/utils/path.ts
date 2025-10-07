@@ -7,7 +7,7 @@ const lesson = "/lesson"; // from ~/routes/lesson+ folder
 
 const ERP_URL = SUPABASE_URL?.includes("localhost")
   ? "http://localhost:3000"
-  : "https://app.carbon.ms";
+  : "https://erp.sortup.dev";
 
 export const path = {
   to: {

@@ -193,7 +193,7 @@ export function getAppUrl() {
   if (VERCEL_ENV === "production" || NODE_ENV === "production") {
     return CONTROLLED_ENVIRONMENT
       ? "https://itar.carbon.ms"
-      : "https://app.sortup.dev";
+      : "https://erp.sortup.dev";
   }
 
   if (VERCEL_ENV === "preview") {
