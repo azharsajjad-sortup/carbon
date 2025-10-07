@@ -63,7 +63,7 @@ export const sessionStorage = createCookieSessionStorage({
     sameSite: "none",
     secure: isProd,
     secrets: [SESSION_SECRET!],
-    domain: isProd ? "*.sortup.dev" : undefined,
+    domain: isProd ? ".sortup.dev" : undefined,
   },
 });
 
