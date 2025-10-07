@@ -5,7 +5,6 @@ import {
   REFRESH_ACCESS_TOKEN_THRESHOLD,
   SESSION_KEY,
   SESSION_MAX_AGE,
-  SESSION_SECRET,
 } from "../config/env";
 import type { AuthSession, Result } from "../types";
 import { getCurrentPath, isGet, makeRedirectToFromHere } from "../utils/http";
@@ -43,29 +42,29 @@ async function assertAuthSession(
 
 const isProd = process.env.VERCEL_ENV === "production";
 
-const sessionStorage = createCookieSessionStorage({
-  cookie: {
-    name: "carbon",
-    httpOnly: true,
-    path: "/",
-    sameSite: "none",
-    secure: isProd, // ✅ only enforce secure in Vercel
-    secrets: [SESSION_SECRET],
-    domain: undefined,
-  },
-});
-
 // const sessionStorage = createCookieSessionStorage({
 //   cookie: {
 //     name: "carbon",
 //     httpOnly: true,
 //     path: "/",
-//     sameSite: "none", // required for cross-subdomain cookies
-//     secure: isProd, // ✅ only enforce secure in prod
-//     secrets: [process.env.SESSION_SECRET!], // from Vercel env
-//     domain: isProd ? ".sortup.dev" : undefined, // share across erp+mes in prod
+//     sameSite: "none",
+//     secure: isProd, // ✅ only enforce secure in Vercel
+//     secrets: [SESSION_SECRET],
+//     domain: undefined,
 //   },
 // });
+
+export const sessionStorage = createCookieSessionStorage({
+  cookie: {
+    name: "carbon",
+    httpOnly: true,
+    path: "/",
+    sameSite: "none",
+    secure: isProd,
+    secrets: [process.env.SESSION_SECRET!],
+    domain: isProd ? ".sortup.dev" : undefined,
+  },
+});
 
 export async function setAuthSession(
   request: Request,
