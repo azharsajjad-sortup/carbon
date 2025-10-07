@@ -5,6 +5,9 @@ import {
   REFRESH_ACCESS_TOKEN_THRESHOLD,
   SESSION_KEY,
   SESSION_MAX_AGE,
+  SESSION_SECRET,
+  VERCEL_ENV,
+  DOMAIN,
 } from "../config/env";
 import type { AuthSession, Result } from "../types";
 import { getCurrentPath, isGet, makeRedirectToFromHere } from "../utils/http";
@@ -28,19 +31,19 @@ async function assertAuthSession(
   return authSession;
 }
 
-// const sessionStorage = createCookieSessionStorage({
-//   cookie: {
-//     name: "carbon",
-//     httpOnly: VERCEL_ENV === "production",
-//     path: "/",
-//     sameSite: "lax",
-//     secrets: [SESSION_SECRET],
-//     secure: VERCEL_ENV === "production",
-//     domain: VERCEL_ENV === "production" ? DOMAIN : undefined, // eg. carbon.ms
-//   },
-// });
+const sessionStorage = createCookieSessionStorage({
+  cookie: {
+    name: "carbon",
+    httpOnly: VERCEL_ENV === "production",
+    path: "/",
+    sameSite: "lax",
+    secrets: [SESSION_SECRET],
+    secure: VERCEL_ENV === "production",
+    domain: VERCEL_ENV === "production" ? DOMAIN : undefined, // eg. carbon.ms
+  },
+});
 
-const isProd = process.env.VERCEL_ENV === "production";
+// const isProd = process.env.VERCEL_ENV === "production";
 
 // const sessionStorage = createCookieSessionStorage({
 //   cookie: {
@@ -54,17 +57,17 @@ const isProd = process.env.VERCEL_ENV === "production";
 //   },
 // });
 
-export const sessionStorage = createCookieSessionStorage({
-  cookie: {
-    name: "carbon",
-    httpOnly: true,
-    path: "/",
-    sameSite: "none",
-    secure: isProd,
-    secrets: [process.env.SESSION_SECRET!],
-    domain: isProd ? ".sortup.dev" : undefined,
-  },
-});
+// export const sessionStorage = createCookieSessionStorage({
+//   cookie: {
+//     name: "carbon",
+//     httpOnly: true,
+//     path: "/",
+//     sameSite: "none",
+//     secure: isProd,
+//     secrets: [process.env.SESSION_SECRET!],
+//     domain: isProd ? ".sortup.dev" : undefined,
+//   },
+// });
 
 export async function setAuthSession(
   request: Request,
