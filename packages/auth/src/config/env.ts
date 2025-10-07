@@ -193,7 +193,7 @@ export function getAppUrl() {
   if (VERCEL_ENV === "production" || NODE_ENV === "production") {
     return CONTROLLED_ENVIRONMENT
       ? "https://itar.carbon.ms"
-      : "https://app.carbon.ms";
+      : "https://app.sortup.dev";
   }
 
   if (VERCEL_ENV === "preview") {
@@ -207,7 +207,7 @@ export function getMESUrl() {
   if (VERCEL_ENV === "production" || NODE_ENV === "production") {
     return CONTROLLED_ENVIRONMENT
       ? "https://mes.itar.carbon.ms"
-      : "https://mes.carbon.ms";
+      : "https://mes.sortup.dev";
   }
 
   if (VERCEL_ENV === "preview") {

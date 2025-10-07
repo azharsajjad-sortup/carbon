@@ -55,6 +55,18 @@ const sessionStorage = createCookieSessionStorage({
   },
 });
 
+// const sessionStorage = createCookieSessionStorage({
+//   cookie: {
+//     name: "carbon",
+//     httpOnly: true,
+//     path: "/",
+//     sameSite: "none", // required for cross-subdomain cookies
+//     secure: isProd, // ✅ only enforce secure in prod
+//     secrets: [process.env.SESSION_SECRET!], // from Vercel env
+//     domain: isProd ? ".sortup.dev" : undefined, // share across erp+mes in prod
+//   },
+// });
+
 export async function setAuthSession(
   request: Request,
   {
