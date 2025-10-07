@@ -6,6 +6,7 @@ import {
   SESSION_KEY,
   SESSION_MAX_AGE,
   SESSION_SECRET,
+  DOMAIN,
 } from "../config/env";
 import type { AuthSession, Result } from "../types";
 import { getCurrentPath, isGet, makeRedirectToFromHere } from "../utils/http";
@@ -63,7 +64,7 @@ export const sessionStorage = createCookieSessionStorage({
     sameSite: "none",
     secure: isProd,
     secrets: [SESSION_SECRET!],
-    domain: isProd ? ".sortup.dev" : undefined,
+    domain: isProd ? DOMAIN : undefined,
   },
 });
 
