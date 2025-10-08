@@ -55,19 +55,10 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     ...part.data,
     serialNumber: barcode.data?.serialNumber,
     barcodeUploadId: itemData.data?.barcodeUploadId,
-    barcodeFileName: barcode.data?.name, // Add actual file name
+    barcodeFileName: barcode.data?.name,
     modelUploadId: itemData.data?.modelUploadId,
-    modelFileName: model.data?.name, // Add actual file name
+    modelFileName: model.data?.name,
   };
-
-  // Debug logging
-  console.log("Edit route debug:", {
-    itemId,
-    barcodeUploadId: itemData.data?.barcodeUploadId,
-    barcodeData: barcode.data,
-    serialNumber: barcode.data?.serialNumber,
-    initialValues,
-  });
 
   return json({ initialValues });
 }
