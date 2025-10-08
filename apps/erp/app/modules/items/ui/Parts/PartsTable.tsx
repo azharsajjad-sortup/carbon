@@ -391,7 +391,7 @@ const PartsTable = memo(({ data, tags, count }: PartsTableProps) => {
         }[]) ?? [];
       return (
         <>
-          <MenuItem onClick={() => navigate(path.to.part(row.id!))}>
+          <MenuItem onClick={() => navigate(path.to.editPart(row.id!))}>
             <MenuIcon icon={<LuPencil />} />
             Edit Part
           </MenuItem>
