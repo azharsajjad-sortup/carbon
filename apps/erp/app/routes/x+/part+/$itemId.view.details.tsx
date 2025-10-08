@@ -59,6 +59,13 @@ export default function PartDetailsRoute() {
   const partData = useRouteData<{
     partSummary: PartSummary;
     files: Promise<ItemFile[]>;
+    barcode: {
+      id: string;
+      imagePath: string;
+      name: string;
+      size: number;
+      serialNumber: string;
+    } | null;
   }>(path.to.part(itemId));
 
   if (!partData) throw new Error("Could not find part data");
@@ -87,6 +94,17 @@ export default function PartDetailsRoute() {
                   files={resolvedFiles}
                   itemId={itemId}
                   modelUpload={partData.partSummary ?? undefined}
+                  barcodeUpload={
+                    partData.barcode
+                      ? {
+                          barcodeId: partData.barcode.id,
+                          barcodeName: partData.barcode.name,
+                          barcodePath: partData.barcode.imagePath,
+                          barcodeSize: partData.barcode.size,
+                          barcodeSerialNumber: partData.barcode.serialNumber,
+                        }
+                      : undefined
+                  }
                   type="Part"
                 />
               )}
