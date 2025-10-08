@@ -2048,6 +2048,7 @@ export async function upsertPart(
         readableId: part.id,
         revision: part.revision ?? "0",
         name: part.name,
+        barcodeUploadId: part.barcodeUploadId,
         type: "Part",
         replenishmentSystem: part.replenishmentSystem,
         defaultMethodType: part.defaultMethodType,
@@ -2062,6 +2063,17 @@ export async function upsertPart(
       .single();
     if (itemInsert.error) return itemInsert;
     const itemId = itemInsert.data?.id;
+    if (part.barcodeUploadId || part.serialNumber) {
+      const barcodeUpdate = await (client as any)
+        .from("barcodeUpload")
+        .update({
+          itemId: itemId,
+          updatedBy: part.createdBy,
+          serialNumber: part.serialNumber ?? undefined,
+        })
+        .eq("id", part.barcodeUploadId ?? "");
+      if (barcodeUpdate.error) return barcodeUpdate;
+    }
 
     const partInsert = await client.from("part").upsert({
       id: part.id,
@@ -2104,6 +2116,9 @@ export async function upsertPart(
     id: part.id,
     name: part.name,
     description: part.description,
+    revision: part.revision,
+    barcodeUploadId: part.barcodeUploadId,
+    modelUploadId: part.modelUploadId,
     replenishmentSystem: part.replenishmentSystem,
     defaultMethodType: part.defaultMethodType,
     itemTrackingType: part.itemTrackingType,
@@ -2129,10 +2144,26 @@ export async function upsertPart(
         ...sanitize(partUpdate),
         updatedAt: today(getLocalTimeZone()).toString(),
       })
-      .eq("itemId", part.id),
+      .eq("id", part.id),
   ]);
 
   if (updateItem.error) return updateItem;
+  if (updatePart.error) return updatePart;
+
+  // Update barcodeUpload relationship if needed
+  if (part.barcodeUploadId) {
+    const barcodeUpdate = await (client as any)
+      .from("barcodeUpload")
+      .update({
+        itemId: part.id,
+        serialNumber: part.serialNumber ?? undefined,
+        updatedBy: part.updatedBy,
+        updatedAt: today(getLocalTimeZone()).toString(),
+      })
+      .eq("id", part.barcodeUploadId);
+    if (barcodeUpdate.error) return barcodeUpdate;
+  }
+
   return updatePart;
 }
 
