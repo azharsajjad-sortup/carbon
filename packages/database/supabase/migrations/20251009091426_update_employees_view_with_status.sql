@@ -1,0 +1,17 @@
+-- Update employees view to include employeeStatusId field
+CREATE OR REPLACE VIEW "employees" WITH(SECURITY_INVOKER=true) AS
+  SELECT 
+    u.id,
+    u."email",
+    u."firstName",
+    u."lastName",
+    u."fullName" AS "name",
+    u."avatarUrl",
+    e."employeeTypeId",
+    e."companyId",
+    u."active",
+    e."employeeStatusId"
+  FROM "user" u
+  INNER JOIN "employee" e
+    ON e.id = u.id
+  WHERE u.active = TRUE;

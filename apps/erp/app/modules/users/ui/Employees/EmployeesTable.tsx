@@ -8,7 +8,7 @@ import {
 } from "@carbon/react";
 import { useNavigate } from "@remix-run/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { memo, useCallback, useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useState, useEffect } from "react";
 import {
   LuBan,
   LuBriefcase,
@@ -23,6 +23,7 @@ import {
 import { EmployeeAvatar, Hyperlink, New, Table } from "~/components";
 import { Enumerable } from "~/components/Enumerable";
 import { usePermissions, useUrlParams } from "~/hooks";
+import { carbonClient } from "@carbon/auth";
 import type { Employee } from "~/modules/users";
 import {
   BulkEditPermissionsForm,
@@ -60,6 +61,40 @@ const EmployeesTable = memo(
     );
 
     const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+    const [employees, setEmployees] = useState(data);
+
+    // Real-time updates for employee status changes
+    useEffect(() => {
+      setEmployees(data);
+    }, [data]);
+
+    useEffect(() => {
+      const subscription = carbonClient
+        .channel("employee-status-updates")
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "employee",
+          },
+          (payload) => {
+            // Update the specific employee's status in real-time
+            setEmployees((prevEmployees) =>
+              prevEmployees.map((emp) =>
+                emp.id === payload.new.id
+                  ? { ...emp, employeeStatusId: payload.new.employeeStatusId }
+                  : emp
+              )
+            );
+          }
+        )
+        .subscribe();
+
+      return () => {
+        subscription.unsubscribe();
+      };
+    }, []);
 
     const bulkEditDrawer = useDisclosure();
     const deactivateEmployeeModal = useDisclosure();
@@ -156,6 +191,33 @@ const EmployeesTable = memo(
               ],
             },
             icon: <LuToggleRight />,
+          },
+        },
+        {
+          id: "employeeStatusId",
+          header: "Employee Status",
+          cell: ({ row }) => {
+            const statusId = (row.original as any).employeeStatusId;
+            const statusName =
+              statusId === "1"
+                ? "Available"
+                : statusId === "2"
+                ? "In Transit"
+                : "Unavailable";
+            const color =
+              statusId === "1" ? "green" : statusId === "2" ? "yellow" : "red";
+            return <Enumerable value={statusName} color={color} />;
+          },
+          meta: {
+            filter: {
+              type: "static",
+              options: [
+                { value: "1", label: "Available" },
+                { value: "2", label: "In Transit" },
+                { value: "3", label: "Unavailable" },
+              ],
+            },
+            icon: <LuUserCheck />,
           },
         },
       ];
@@ -290,10 +352,10 @@ const EmployeesTable = memo(
 
     return (
       <>
-        <Table<(typeof data)[number]>
+        <Table<(typeof employees)[number]>
           count={count}
           columns={columns}
-          data={data}
+          data={employees}
           defaultColumnVisibility={defaultColumnVisibility}
           primaryAction={
             permissions.can("create", "users") && (

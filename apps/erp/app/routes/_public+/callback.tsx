@@ -13,6 +13,7 @@ import {
   getAuthSession,
   setAuthSession,
 } from "@carbon/auth/session.server";
+import { updateEmployeeStatus } from "~/modules/users";
 import { getUserByEmail } from "@carbon/auth/users.server";
 import { validator } from "@carbon/form";
 
@@ -73,6 +74,14 @@ export async function action({ request }: ActionFunctionArgs) {
   const user = await getUserByEmail(authSession.email);
 
   if (user?.data) {
+    // Update employee status to Available on login
+    await updateEmployeeStatus(
+      getCarbonServiceRole(),
+      userId,
+      companies.data?.[0]?.companyId!,
+      "1"
+    );
+
     const sessionCookie = await setAuthSession(request, {
       authSession,
     });
