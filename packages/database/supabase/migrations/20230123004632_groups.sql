@@ -1,5 +1,5 @@
 CREATE TABLE "group" (
-  "id" TEXT NOT NULL DEFAULT uuid_generate_v4(),
+  "id" TEXT NOT NULL DEFAULT gen_random_uuid(),
   "name" TEXT NOT NULL,
   "companyId" TEXT,
   "isIdentityGroup" BOOLEAN NOT NULL DEFAULT false,

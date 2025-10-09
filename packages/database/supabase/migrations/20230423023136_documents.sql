@@ -12,7 +12,7 @@ CREATE TYPE "documentType" AS ENUM (
 );
 
 CREATE TABLE "document" (
-  "id" TEXT NOT NULL DEFAULT uuid_generate_v4(),
+  "id" TEXT NOT NULL DEFAULT gen_random_uuid(),
   "path" TEXT NOT NULL,
   "name" TEXT NOT NULL,
   "description" TEXT DEFAULT '',
