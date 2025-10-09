@@ -100,6 +100,19 @@ export async function getEmployees(
   return query;
 }
 
+export async function updateEmployeeStatus(
+  client: SupabaseClient<Database>,
+  employeeId: string,
+  companyId: string,
+  statusId: string
+) {
+  return client
+    .from("employee")
+    .update({ employeeStatusId: statusId })
+    .eq("id", employeeId)
+    .eq("companyId", companyId);
+}
+
 export async function getEmployeeType(
   client: SupabaseClient<Database>,
   employeeTypeId: string
