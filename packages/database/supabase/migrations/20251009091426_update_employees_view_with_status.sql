@@ -9,7 +9,7 @@ CREATE OR REPLACE VIEW "employees" WITH(SECURITY_INVOKER=true) AS
     u."avatarUrl",
     e."employeeTypeId",
     e."companyId",
-    u."active",
+    e."active",
     e."employeeStatusId"
   FROM "user" u
   INNER JOIN "employee" e
